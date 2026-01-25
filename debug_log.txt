@@ -147,3 +147,47 @@ Initializing OpenAI Whisper Model...
 Whisper Model loaded (CPU).
 Transcription complete. Segments: 22
 Worker thread finished successfully.
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 1 [559791144_Episode-1].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 22
+Worker thread finished successfully.
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\video_player.py", line 69, in open_style_editor
+    dialog = SubtitleStyleDialog(self.sub_overlay.style_settings, self)
+  File "E:\project\videoAIVoice\ui\style_dialog.py", line 14, in __init__
+    self.init_ui()
+    ~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\style_dialog.py", line 27, in init_ui
+    self.font_combo.setCurrentFont(QFont(self.settings['font_family']))
+                                   ^^^^^
+NameError: name 'QFont' is not defined
+
+--------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\video_player.py", line 69, in open_style_editor
+    dialog = SubtitleStyleDialog(self.sub_overlay.style_settings, self)
+  File "E:\project\videoAIVoice\ui\style_dialog.py", line 14, in __init__
+    self.init_ui()
+    ~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\style_dialog.py", line 27, in init_ui
+    self.font_combo.setCurrentFont(QFont(self.settings['font_family']))
+                                   ^^^^^
+NameError: name 'QFont' is not defined
+
+--------------------
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 1 [559791144_Episode-1].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 22
+Worker thread finished successfully.

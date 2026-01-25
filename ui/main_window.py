@@ -282,6 +282,9 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 0, QTableWidgetItem(self.format_time(sub['start'])))
             self.table.setItem(i, 1, QTableWidgetItem(self.format_time(sub['end'])))
             self.table.setItem(i, 2, QTableWidgetItem(sub['text']))
+            
+        # Update Video Player
+        self.video_player.set_subtitles(self.subtitles)
 
     def format_time(self, seconds):
         return QTime(0, 0).addMSecs(int(seconds * 1000)).toString("mm:ss.zzz")

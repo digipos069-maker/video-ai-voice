@@ -7,6 +7,9 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 
+from ui.subtitle_overlay import SubtitleOverlay
+from ui.style_dialog import SubtitleStyleDialog
+
 class VideoPlayer(QWidget):
     positionChanged = pyqtSignal(int)
     durationChanged = pyqtSignal(int)
@@ -32,6 +35,10 @@ class VideoPlayer(QWidget):
         self.ai_segments = [] # List of {'start': float, 'path': str}
         self.next_ai_index = 0
         
+        # Subtitle Data
+        self.subtitles = [] # List of {'start': float, 'end': float, 'text': str}
+        self.current_subtitle_index = -1
+
         # Display label
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
@@ -39,10 +46,30 @@ class VideoPlayer(QWidget):
         self.label.setMinimumSize(640, 360)
         self.label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
+        # Subtitle Overlay (Child of the video label)
+        self.sub_overlay = SubtitleOverlay(self.label)
+        self.sub_overlay.doubleClicked.connect(self.open_style_editor)
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.label)
         self.setLayout(layout)
+
+    def set_subtitles(self, subtitles):
+        """
+        subtitles: List of dicts {'start': float, 'end': float, 'text': str}
+        """
+        self.subtitles = sorted(subtitles, key=lambda x: x['start'])
+        self.sub_overlay.show() if subtitles else self.sub_overlay.hide()
+        # Default Position (Bottom Center)
+        self.sub_overlay.move(50, self.label.height() - 100)
+
+    def open_style_editor(self):
+        self.pause() # Pause video while editing
+        dialog = SubtitleStyleDialog(self.sub_overlay.style_settings, self)
+        if dialog.exec_():
+            new_settings = dialog.get_settings()
+            self.sub_overlay.update_style(new_settings)
 
     def _handle_audio_error(self):
         err = self.orig_player.errorString()
@@ -190,6 +217,20 @@ class VideoPlayer(QWidget):
                 # Update Time State
                 current_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
                 self.current_msec = int((current_frame / self.fps) * 1000)
+                current_sec = self.current_msec / 1000.0
+                
+                # Update Subtitle Text
+                found_sub = False
+                for sub in self.subtitles:
+                    if sub['start'] <= current_sec <= sub['end']:
+                        if self.sub_overlay.text() != sub['text']:
+                            self.sub_overlay.setText(sub['text'])
+                            self.sub_overlay.adjustSize()
+                        found_sub = True
+                        break
+                
+                if not found_sub and self.sub_overlay.text() != "":
+                    self.sub_overlay.setText("")
                 
                 # Check AI Triggers
                 if self.is_playing and self.next_ai_index < len(self.ai_segments):
