@@ -201,7 +201,9 @@ class MainWindow(QMainWindow):
             "en-US-GuyNeural", 
             "en-US-JennyNeural",
             "en-GB-SoniaNeural",
-            "en-GB-RyanNeural"
+            "en-GB-RyanNeural",
+            "km-KH-PisethNeural",   # Khmer Male
+            "km-KH-SreymomNeural"   # Khmer Female
         ]
         self.combo_voices.addItems(common_voices)
 

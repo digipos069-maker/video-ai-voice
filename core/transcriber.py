@@ -5,12 +5,45 @@ import imageio_ffmpeg
 import traceback
 import sys
 import torch
+import numpy as np
 
 def log_debug(message):
     """Writes debug info to a file since the console might close."""
     with open("debug_log.txt", "a", encoding="utf-8") as f:
         f.write(message + "\n")
     print(message)
+
+# --- Monkey-patch Whisper to use imageio_ffmpeg ---
+# This fixes the "WinError 2" by ensuring Whisper finds ffmpeg
+def custom_load_audio(file: str, sr: int = 16000):
+    """
+    Open an audio file and read as mono waveform, resampling as necessary.
+    Based on whisper.audio.load_audio but uses explicit ffmpeg path.
+    """
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    
+    cmd = [
+        ffmpeg_exe,
+        "-nostdin",
+        "-threads", "0",
+        "-i", file,
+        "-f", "s16le",
+        "-ac", "1",
+        "-acodec", "pcm_s16le",
+        "-ar", str(sr),
+        "-"
+    ]
+    
+    try:
+        out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+
+    return np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+
+# Apply the patch
+whisper.audio.load_audio = custom_load_audio
+# --------------------------------------------------
 
 class Transcriber:
     def __init__(self, model_name="base"):

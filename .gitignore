@@ -4,3 +4,5 @@ __pycache__/
 *.pyo
 # For Python 3.2+ in the local directory
 *cpython-3*.pyc
+
+temp_audio/
