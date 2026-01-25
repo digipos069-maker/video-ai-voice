@@ -14,6 +14,7 @@ from ui.video_player import VideoPlayer
 from ui.timeline import TimelineLane
 from core.srt_parser import parse_srt
 from core.audio_generator import AudioGenerator
+from core.settings_manager import SettingsManager
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -253,6 +254,28 @@ class MainWindow(QMainWindow):
     def setup_settings_tab(self):
         layout = QVBoxLayout(self.settings_tab)
         
+        # --- Output Settings ---
+        output_group = QGroupBox("Output Configuration")
+        out_layout = QGridLayout()
+        
+        out_layout.addWidget(QLabel("Default Output Folder:"), 0, 0)
+        
+        self.txt_output_dir = QLineEdit()
+        self.txt_output_dir.setReadOnly(True)
+        # Load saved setting
+        saved_path = SettingsManager.get_setting("output_folder", os.getcwd())
+        self.txt_output_dir.setText(saved_path)
+        
+        out_layout.addWidget(self.txt_output_dir, 0, 1)
+        
+        self.btn_browse_out = QPushButton("Browse")
+        self.btn_browse_out.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))
+        self.btn_browse_out.clicked.connect(self.browse_output_folder)
+        out_layout.addWidget(self.btn_browse_out, 0, 2)
+        
+        output_group.setLayout(out_layout)
+        layout.addWidget(output_group)
+        
         # Voice Settings
         voice_group = QGroupBox("Voice Settings")
         voice_layout = QGridLayout()
@@ -270,6 +293,12 @@ class MainWindow(QMainWindow):
         voice_group.setLayout(voice_layout)
         layout.addWidget(voice_group)
         layout.addStretch()
+
+    def browse_output_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder", self.txt_output_dir.text())
+        if folder:
+            self.txt_output_dir.setText(folder)
+            SettingsManager.save_setting("output_folder", folder)
 
     def load_voices(self):
         # For now, load some hardcoded popular Edge-TTS voices to avoid async blocking on startup
@@ -410,7 +439,10 @@ class MainWindow(QMainWindow):
         if not self.subtitles:
             return
             
-        path, _ = QFileDialog.getSaveFileName(self, "Save Subtitles", "", "SRT Files (*.srt)")
+        default_dir = SettingsManager.get_setting("output_folder", os.getcwd())
+        default_name = os.path.join(default_dir, "subtitles.srt")
+        
+        path, _ = QFileDialog.getSaveFileName(self, "Save Subtitles", default_name, "SRT Files (*.srt)")
         if path:
             from core.transcriber import segments_to_srt
             srt_content = segments_to_srt(self.subtitles)
@@ -474,7 +506,10 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Success", "Audio generation complete! You can now export the video.")
 
     def export_video(self):
-        output_path, _ = QFileDialog.getSaveFileName(self, "Save Video", "", "MP4 Files (*.mp4)")
+        default_dir = SettingsManager.get_setting("output_folder", os.getcwd())
+        default_name = os.path.join(default_dir, "video_dubbed.mp4")
+        
+        output_path, _ = QFileDialog.getSaveFileName(self, "Save Video", default_name, "MP4 Files (*.mp4)")
         if output_path:
             # Calculate Volumes from timeline controls
             if self.row_audio.chk_mute.isChecked():
