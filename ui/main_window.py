@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QComboBox, QMessageBox, QProgressBar, QGroupBox, QLineEdit,
                              QGridLayout, QCheckBox, QStyle)
 from PyQt5.QtCore import Qt, QUrl, QTime
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 
 from ui.styles import STYLESHEET, PRIMARY_COLOR
 from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker, TranslationWorker
@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Start", "End", "Text"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.table.setFont(QFont("Leelawadee UI", 11)) # Khmer-friendly font
         right_panel.addWidget(self.table)
 
         # 2. Generation Controls

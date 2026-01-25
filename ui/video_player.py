@@ -125,7 +125,7 @@ class VideoPlayer(QWidget):
                 "-vn",
                 "-acodec", "pcm_s16le", # WAV format (widely supported)
                 "-ar", "44100",
-                "-ac", "2",
+                "-ac", "1", # Mono is more compatible for some drivers
                 temp_audio
             ]
             # Run fast extraction

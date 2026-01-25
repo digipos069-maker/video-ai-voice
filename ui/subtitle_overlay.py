@@ -13,7 +13,7 @@ class SubtitleOverlay(QLabel):
         
         # Default Style
         self.style_settings = {
-            'font_family': 'Arial',
+            'font_family': 'Leelawadee UI',
             'font_size': 24,
             'color': '#FFFFFF',
             'outline_color': '#000000',

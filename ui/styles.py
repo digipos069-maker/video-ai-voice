@@ -9,7 +9,7 @@ QMainWindow {{
 }}
 
 QWidget {{
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI', 'Leelawadee UI', sans-serif;
     font-size: 14px;
     color: {TEXT_COLOR};
 }}
