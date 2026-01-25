@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QFileDialog, QTableWidget, 
                              QTableWidgetItem, QTabWidget, QHeaderView, QSlider, 
                              QComboBox, QMessageBox, QProgressBar, QGroupBox, QLineEdit,
-                             QGridLayout)
+                             QGridLayout, QCheckBox)
 from PyQt5.QtCore import Qt, QUrl, QTime
 from PyQt5.QtGui import QIcon
 
@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
         self.subtitles = []
         self.generated_audio_segments = []
         self.output_dir = os.path.join(os.getcwd(), "temp_audio")
+        self._active_threads = [] # Keep references to threads
         
         # UI Setup
         self.init_ui()
@@ -55,17 +56,17 @@ class MainWindow(QMainWindow):
     def setup_editor_tab(self):
         layout = QHBoxLayout(self.editor_tab)
 
-        # Left Panel: Video Player
+        # --- LEFT PANEL ---
         left_panel = QVBoxLayout()
         
-        # Custom Video Widget
+        # 1. Video Player
         self.video_player = VideoPlayer()
         self.video_player.stateChanged.connect(self.media_state_changed)
         self.video_player.positionChanged.connect(self.position_changed)
         self.video_player.durationChanged.connect(self.duration_changed)
         left_panel.addWidget(self.video_player)
 
-        # Player Controls
+        # 2. Player Controls
         controls_layout = QHBoxLayout()
         self.btn_play = QPushButton("Play")
         self.btn_play.clicked.connect(self.play_video)
@@ -76,7 +77,10 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.slider_seek)
         left_panel.addLayout(controls_layout)
 
-        # Action Buttons
+        # Spacer to push buttons to bottom
+        left_panel.addStretch()
+
+        # 3. Import Buttons (Moved to Bottom)
         actions_layout = QHBoxLayout()
         self.btn_load_video = QPushButton("Import Video")
         self.btn_load_video.clicked.connect(self.load_video)
@@ -84,29 +88,69 @@ class MainWindow(QMainWindow):
         self.btn_load_srt = QPushButton("Import Subtitles")
         self.btn_load_srt.clicked.connect(self.load_subtitles)
 
+        self.btn_export_srt = QPushButton("Export Subtitles (.srt)")
+        self.btn_export_srt.clicked.connect(self.save_subtitles)
+        self.btn_export_srt.setEnabled(False)
+
         self.btn_auto_srt = QPushButton("Auto-Generate Subtitles")
         self.btn_auto_srt.clicked.connect(self.auto_generate_subtitles)
         self.btn_auto_srt.setEnabled(False)
         
         actions_layout.addWidget(self.btn_load_video)
         actions_layout.addWidget(self.btn_load_srt)
+        actions_layout.addWidget(self.btn_export_srt)
         actions_layout.addWidget(self.btn_auto_srt)
         left_panel.addLayout(actions_layout)
         
-        left_panel.addStretch()
         layout.addLayout(left_panel, stretch=2)
 
-        # Right Panel: Subtitles & Generation
+        # --- RIGHT PANEL ---
         right_panel = QVBoxLayout()
         
+        # 1. Subtitle Table
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Start", "End", "Text"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         right_panel.addWidget(self.table)
 
-        # Generation Controls
-        gen_group = QGroupBox("AI Voice Generation")
+        # 2. Audio Mixer (New Feature)
+        mixer_group = QGroupBox("Audio Mixer")
+        mixer_layout = QGridLayout()
+
+        # Original Audio Row
+        mixer_layout.addWidget(QLabel("Original Video Sound:"), 0, 0)
+        
+        self.slider_orig_vol = QSlider(Qt.Horizontal)
+        self.slider_orig_vol.setRange(0, 100)
+        self.slider_orig_vol.setValue(100) # Default 100%
+        mixer_layout.addWidget(self.slider_orig_vol, 0, 1)
+
+        self.check_mute_orig = QCheckBox("Mute")
+        self.check_mute_orig.stateChanged.connect(
+            lambda: self.slider_orig_vol.setEnabled(not self.check_mute_orig.isChecked())
+        )
+        mixer_layout.addWidget(self.check_mute_orig, 0, 2)
+
+        # AI Audio Row
+        mixer_layout.addWidget(QLabel("AI Voiceover:"), 1, 0)
+        
+        self.slider_ai_vol = QSlider(Qt.Horizontal)
+        self.slider_ai_vol.setRange(0, 100)
+        self.slider_ai_vol.setValue(100) # Default 100%
+        mixer_layout.addWidget(self.slider_ai_vol, 1, 1)
+
+        self.check_mute_ai = QCheckBox("Mute")
+        self.check_mute_ai.stateChanged.connect(
+            lambda: self.slider_ai_vol.setEnabled(not self.check_mute_ai.isChecked())
+        )
+        mixer_layout.addWidget(self.check_mute_ai, 1, 2)
+
+        mixer_group.setLayout(mixer_layout)
+        right_panel.addWidget(mixer_group)
+
+        # 3. Generation Controls
+        gen_group = QGroupBox("Process")
         gen_layout = QVBoxLayout()
         
         self.progress_bar = QProgressBar()
@@ -219,8 +263,22 @@ class MainWindow(QMainWindow):
     def check_enable_generate(self):
         if self.video_path:
             self.btn_auto_srt.setEnabled(True)
+        if self.subtitles:
+            self.btn_export_srt.setEnabled(True)
         if self.video_path and self.subtitles:
             self.btn_generate.setEnabled(True)
+
+    def save_subtitles(self):
+        if not self.subtitles:
+            return
+            
+        path, _ = QFileDialog.getSaveFileName(self, "Save Subtitles", "", "SRT Files (*.srt)")
+        if path:
+            from core.transcriber import segments_to_srt
+            srt_content = segments_to_srt(self.subtitles)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(srt_content)
+            QMessageBox.information(self, "Success", f"Subtitles saved to {path}")
 
     # --- Logic ---
     def auto_generate_subtitles(self):
@@ -230,10 +288,14 @@ class MainWindow(QMainWindow):
         self.btn_auto_srt.setEnabled(False)
         self.progress_bar.setRange(0, 0) # Loading...
         
-        self.thread_transcribe = TranscriptionWorker(self.video_path)
-        self.thread_transcribe.finished.connect(self.on_transcription_finished)
-        self.thread_transcribe.error.connect(lambda err: QMessageBox.critical(self, "Error", err))
-        self.thread_transcribe.start()
+        worker = TranscriptionWorker(self.video_path)
+        worker.finished.connect(self.on_transcription_finished)
+        worker.error.connect(lambda err: QMessageBox.critical(self, "Error", err))
+        # Fix: Accept the 'segments' argument even if we don't use it in this lambda
+        worker.finished.connect(lambda segments: self._active_threads.remove(worker) if worker in self._active_threads else None)
+        
+        self._active_threads.append(worker)
+        worker.start()
 
     def on_transcription_finished(self, segments):
         self.progress_bar.setRange(0, 100)
@@ -265,12 +327,27 @@ class MainWindow(QMainWindow):
     def export_video(self):
         output_path, _ = QFileDialog.getSaveFileName(self, "Save Video", "", "MP4 Files (*.mp4)")
         if output_path:
-            bg_vol = self.slider_vol.value() / 100.0
+            # Calculate Volumes
+            if self.check_mute_orig.isChecked():
+                vol_orig = 0.0
+            else:
+                vol_orig = self.slider_orig_vol.value() / 100.0
+
+            if self.check_mute_ai.isChecked():
+                vol_ai = 0.0
+            else:
+                vol_ai = self.slider_ai_vol.value() / 100.0
             
-            self.thread_export = VideoExportWorker(self.video_path, self.generated_audio_segments, output_path, bg_vol)
+            self.thread_export = VideoExportWorker(
+                self.video_path, 
+                self.generated_audio_segments, 
+                output_path, 
+                vol_orig, 
+                vol_ai
+            )
             self.thread_export.finished.connect(self.on_export_finished)
             
-            self.progress_bar.setValue(0) # Reset or use infinite
+            self.progress_bar.setValue(0) 
             self.progress_bar.setRange(0, 0) # Infinite loading
             self.btn_export.setEnabled(False)
             self.thread_export.start()
