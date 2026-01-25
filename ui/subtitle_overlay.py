@@ -47,6 +47,10 @@ class SubtitleOverlay(QLabel):
         # Getting a true stroke in QLabel is hard, so we use a shadow effect for readability.
         self.setStyleSheet(f"""
             QLabel {{
+                font-family: "{s['font_family']}";
+                font-size: {s['font_size']}px;
+                font-weight: {'bold' if s['is_bold'] else 'normal'};
+                font-style: {'italic' if s['is_italic'] else 'normal'};
                 color: {s['color']};
                 background-color: {s['bg_color']};
                 padding: 4px;
@@ -61,6 +65,7 @@ class SubtitleOverlay(QLabel):
         effect.setOffset(1, 1)
         self.setGraphicsEffect(effect)
         
+        self.setCursor(Qt.OpenHandCursor) # Force "Grab" cursor
         self.adjustSize()
 
     def mousePressEvent(self, event):
