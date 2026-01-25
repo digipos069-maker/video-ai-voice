@@ -62,10 +62,10 @@ class VideoPlayer(QWidget):
         """Displays the placeholder icon and text."""
         # Create a placeholder pixmap/text
         self.label.clear()
-        self.label.setText("No Video Selected\n\nClick 'Import Video' to start")
+        self.label.setText("No Video Selected\n\nClick here or 'Import Video' to start")
         
-        # If we had a fancy icon, we could set it, but text is clearer for now
-        # combined with the dark background.
+        # Add pointing hand cursor to indicate it's clickable
+        self.label.setCursor(Qt.PointingHandCursor)
         
         # Ensure overlay is hidden
         self.sub_overlay.hide()
@@ -144,6 +144,9 @@ class VideoPlayer(QWidget):
         
         self.durationChanged.emit(int(duration_sec * 1000)) # msecs
         self.current_msec = 0
+        
+        # Reset cursor from placeholder pointing hand to default
+        self.label.setCursor(Qt.ArrowCursor)
         
         # Show first frame
         self.next_frame()

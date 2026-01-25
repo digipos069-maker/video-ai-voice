@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QFileDialog, QTableWidget, 
                              QTableWidgetItem, QTabWidget, QHeaderView, QSlider, 
                              QComboBox, QMessageBox, QProgressBar, QGroupBox, QLineEdit,
-                             QGridLayout, QCheckBox)
+                             QGridLayout, QCheckBox, QStyle)
 from PyQt5.QtCore import Qt, QUrl, QTime
 from PyQt5.QtGui import QIcon
 
@@ -52,6 +52,19 @@ class MainWindow(QMainWindow):
         self.settings_tab = QWidget()
         self.setup_settings_tab()
         self.tabs.addTab(self.settings_tab, "Settings")
+        
+        # Apply cursors to all buttons
+        self.set_cursors()
+
+    def set_cursors(self):
+        """Recursively sets pointing hand cursor for all buttons."""
+        buttons = self.findChildren(QPushButton)
+        for btn in buttons:
+            btn.setCursor(Qt.PointingHandCursor)
+            
+        # Also set for ComboBoxes and CheckBoxes
+        for widget in self.findChildren((QComboBox, QCheckBox)):
+            widget.setCursor(Qt.PointingHandCursor)
 
     def create_track_widget(self, label_text):
         """Creates a track widget with label, volume slider, and mute button."""
@@ -99,6 +112,7 @@ class MainWindow(QMainWindow):
         # 2. Player Controls
         controls_layout = QHBoxLayout()
         self.btn_play = QPushButton("Play")
+        self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.btn_play.clicked.connect(self.play_video)
         self.slider_seek = QSlider(Qt.Horizontal)
         self.slider_seek.sliderMoved.connect(self.set_position)
@@ -142,16 +156,20 @@ class MainWindow(QMainWindow):
         # 3. Import Buttons (Moved to Bottom)
         actions_layout = QHBoxLayout()
         self.btn_load_video = QPushButton("Import Video")
+        self.btn_load_video.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
         self.btn_load_video.clicked.connect(self.load_video)
         
         self.btn_load_srt = QPushButton("Import Subtitles")
+        self.btn_load_srt.setIcon(self.style().standardIcon(QStyle.SP_FileIcon))
         self.btn_load_srt.clicked.connect(self.load_subtitles)
 
-        self.btn_export_srt = QPushButton("Export Subtitles (.srt)")
+        self.btn_export_srt = QPushButton("Export Subtitles")
+        self.btn_export_srt.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
         self.btn_export_srt.clicked.connect(self.save_subtitles)
         self.btn_export_srt.setEnabled(False)
 
-        self.btn_auto_srt = QPushButton("Auto-Generate Subtitles")
+        self.btn_auto_srt = QPushButton("Auto-Generate")
+        self.btn_auto_srt.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
         self.btn_auto_srt.clicked.connect(self.auto_generate_subtitles)
         self.btn_auto_srt.setEnabled(False)
         
@@ -182,11 +200,13 @@ class MainWindow(QMainWindow):
         gen_layout.addWidget(self.progress_bar)
 
         self.btn_generate = QPushButton("Generate AI Voice")
+        self.btn_generate.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.btn_generate.clicked.connect(self.generate_voice)
         self.btn_generate.setEnabled(False)
         gen_layout.addWidget(self.btn_generate)
 
         self.btn_export = QPushButton("Export Final Video")
+        self.btn_export.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
         self.btn_export.clicked.connect(self.export_video)
         self.btn_export.setEnabled(False)
         gen_layout.addWidget(self.btn_export)

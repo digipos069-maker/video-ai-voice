@@ -42,24 +42,24 @@ QPushButton {{
     padding: 10px 20px;
     border-radius: 4px;
     font-weight: bold;
-    qproperty-cursor: PointingHandCursor;
+    qproperty-cursor: "PointingHandCursor";
 }}
-
-QComboBox, QCheckBox, QHeaderView, QTabBar {{
-    qproperty-cursor: PointingHandCursor;
-}}
-
-QSlider {{
-    qproperty-cursor: OpenHandCursor;
-}}
-
-QSlider::handle:horizontal {{
-    qproperty-cursor: OpenHandCursor;
-}}
-
 
 QPushButton:hover {{
     background-color: #02237A;
+    qproperty-cursor: "PointingHandCursor";
+}}
+
+QComboBox, QCheckBox, QHeaderView, QTabBar {{
+    qproperty-cursor: "PointingHandCursor";
+}}
+
+QSlider {{
+    qproperty-cursor: "OpenHandCursor";
+}}
+
+QSlider::handle:horizontal {{
+    qproperty-cursor: "OpenHandCursor";
 }}
 
 QPushButton:pressed {{
