@@ -1,5 +1,8 @@
 import cv2
-from PyQt5.QtWidgets import QLabel, QSizePolicy, QWidget, QVBoxLayout
+import os
+import subprocess
+import imageio_ffmpeg
+from PyQt5.QtWidgets import QLabel, QSizePolicy, QWidget, QVBoxLayout, QMessageBox
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -18,9 +21,16 @@ class VideoPlayer(QWidget):
         self.is_playing = False
         self.fps = 30
         self.total_frames = 0
+        self.current_msec = 0
         
-        # Audio Player (Qt Multimedia)
-        self.audio_player = QMediaPlayer(None, QMediaPlayer.LowLatency)
+        # Audio Player 1: Original Video Sound
+        self.orig_player = QMediaPlayer(None, QMediaPlayer.LowLatency)
+        self.orig_player.error.connect(self._handle_audio_error)
+        
+        # Audio Player 2: AI Voiceover
+        self.ai_player = QMediaPlayer(None, QMediaPlayer.LowLatency)
+        self.ai_segments = [] # List of {'start': float, 'path': str}
+        self.next_ai_index = 0
         
         # Display label
         self.label = QLabel()
@@ -33,6 +43,10 @@ class VideoPlayer(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.label)
         self.setLayout(layout)
+
+    def _handle_audio_error(self):
+        err = self.orig_player.errorString()
+        print(f"Original Audio Error: {err}")
 
     def load_video(self, path):
         self.stop()
@@ -49,76 +63,149 @@ class VideoPlayer(QWidget):
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_sec = self.total_frames / self.fps
         
-        # Load Audio
-        self.audio_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+        # --- FIX: Extract audio to temporary WAV for guaranteed playback ---
+        temp_audio = os.path.join(os.getcwd(), "temp_preview_audio.wav")
+        try:
+            if os.path.exists(temp_audio):
+                os.remove(temp_audio)
+                
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            cmd = [
+                ffmpeg_exe,
+                "-y",
+                "-i", path,
+                "-vn",
+                "-acodec", "pcm_s16le", # WAV format (widely supported)
+                "-ar", "44100",
+                "-ac", "2",
+                temp_audio
+            ]
+            # Run fast extraction
+            subprocess.run(cmd, creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0, check=True)
+            
+            # Load the extracted WAV
+            url = QUrl.fromLocalFile(temp_audio)
+            self.orig_player.setMedia(QMediaContent(url))
+            
+        except Exception as e:
+            print(f"Audio extraction failed: {e}")
+            # Fallback to original file (might fail with 0x80040266 but worth a try)
+            url = QUrl.fromLocalFile(path)
+            self.orig_player.setMedia(QMediaContent(url))
+        # -------------------------------------------------------------------
         
         self.durationChanged.emit(int(duration_sec * 1000)) # msecs
+        self.current_msec = 0
         
         # Show first frame
         self.next_frame()
         return True, ""
+
+    def load_ai_segments(self, segments):
+        """
+        segments: List of dicts {'start': float, 'path': str} (start is in seconds)
+        """
+        # Sort by start time just in case
+        self.ai_segments = sorted(segments, key=lambda x: x['start'])
+        self.next_ai_index = 0
 
     def play(self):
         if self.cap and self.cap.isOpened():
             self.is_playing = True
             interval = int(1000 / self.fps)
             self.timer.start(interval)
-            self.audio_player.play()
+            
+            # Play original audio
+            self.orig_player.play()
+            
+            # AI player is triggered in next_frame logic, but if we are resuming inside a segment, handling is complex.
+            # For simplicity, we just resume checking triggers.
+            if self.ai_player.state() == QMediaPlayer.PausedState:
+                self.ai_player.play()
+                
             self.stateChanged.emit(True)
 
     def pause(self):
         self.is_playing = False
         self.timer.stop()
-        self.audio_player.pause()
+        self.orig_player.pause()
+        self.ai_player.pause()
         self.stateChanged.emit(False)
 
     def stop(self):
         self.pause()
-        self.audio_player.stop()
+        self.orig_player.stop()
+        self.ai_player.stop()
         if self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.next_frame()
+        self.current_msec = 0
+        self.next_ai_index = 0
 
     def set_position(self, msecs):
         if self.cap and self.cap.isOpened():
-            # Sync Audio
-            self.audio_player.setPosition(msecs)
+            self.current_msec = msecs
             
             # Sync Video
             frame_idx = int((msecs / 1000) * self.fps)
             frame_idx = max(0, min(frame_idx, self.total_frames - 1))
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             self.next_frame()
+            
+            # Sync Original Audio
+            self.orig_player.setPosition(msecs)
+            
+            # Reset AI Index
+            # Find the next segment that starts AFTER current time
+            self.next_ai_index = len(self.ai_segments)
+            current_sec = msecs / 1000.0
+            for i, seg in enumerate(self.ai_segments):
+                if seg['start'] > current_sec:
+                    self.next_ai_index = i
+                    break
+            
+            # Stop AI player if seeking (simple approach)
+            self.ai_player.stop()
 
-    def set_volume(self, volume):
-        """Sets the volume of the audio player (0-100)."""
-        self.audio_player.setVolume(volume)
+    def set_orig_volume(self, volume):
+        self.orig_player.setVolume(volume)
+
+    def set_ai_volume(self, volume):
+        self.ai_player.setVolume(volume)
 
     def next_frame(self):
         if self.cap and self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
-                # Convert BGR (OpenCV) to RGB (Qt)
+                # Video Rendering
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w, ch = frame.shape
                 bytes_per_line = ch * w
                 q_img = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
                 
-                # Scale to fit label keeping aspect ratio
                 pixmap = QPixmap.fromImage(q_img)
                 scaled_pixmap = pixmap.scaled(self.label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.label.setPixmap(scaled_pixmap)
                 
-                # Emit position
+                # Update Time State
                 current_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
-                current_msec = int((current_frame / self.fps) * 1000)
+                self.current_msec = int((current_frame / self.fps) * 1000)
                 
-                # Only emit if playing to avoid loops during seek
+                # Check AI Triggers
+                if self.is_playing and self.next_ai_index < len(self.ai_segments):
+                    seg = self.ai_segments[self.next_ai_index]
+                    # Check if we reached the start time (with small tolerance)
+                    # Use seconds for comparison
+                    current_sec = self.current_msec / 1000.0
+                    
+                    if current_sec >= seg['start']:
+                        # Play this segment
+                        # print(f"Playing AI Segment: {seg['path']} at {current_sec}")
+                        self.ai_player.setMedia(QMediaContent(QUrl.fromLocalFile(seg['path'])))
+                        self.ai_player.play()
+                        self.next_ai_index += 1
+                
                 if self.is_playing:
-                    self.positionChanged.emit(current_msec)
+                    self.positionChanged.emit(self.current_msec)
             else:
-                # Loop or stop at end
                 self.pause()
-
-    def state(self):
-        return self.is_playing

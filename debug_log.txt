@@ -121,3 +121,29 @@ Initializing OpenAI Whisper Model...
 Whisper Model loaded (CPU).
 Transcription complete. Segments: 22
 Worker thread finished successfully.
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 235, in play_video
+    if self.video_player.state():
+       ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VideoPlayer' object has no attribute 'state'. Did you mean: 'style'?
+
+--------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 235, in play_video
+    if self.video_player.state():
+       ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VideoPlayer' object has no attribute 'state'. Did you mean: 'style'?
+
+--------------------
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 1 [559791144_Episode-1].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 22
+Worker thread finished successfully.

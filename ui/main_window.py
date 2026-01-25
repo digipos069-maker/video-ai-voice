@@ -114,15 +114,22 @@ class MainWindow(QMainWindow):
         self.widget_orig_track.setVisible(False) # Hidden initially
         
         # Connect Volume Control
-        self.widget_orig_track.slider.valueChanged.connect(self.video_player.set_volume)
+        self.widget_orig_track.slider.valueChanged.connect(self.video_player.set_orig_volume)
         self.widget_orig_track.chk_mute.stateChanged.connect(
-            lambda state: self.video_player.set_volume(0 if state else self.widget_orig_track.slider.value())
+            lambda state: self.video_player.set_orig_volume(0 if state else self.widget_orig_track.slider.value())
         )
         
         tracks_layout.addWidget(self.widget_orig_track)
         
         self.widget_ai_track = self.create_track_widget("AI Voiceover")
         self.widget_ai_track.setVisible(False) # Hidden initially
+        
+        # Connect AI Volume Control
+        self.widget_ai_track.slider.valueChanged.connect(self.video_player.set_ai_volume)
+        self.widget_ai_track.chk_mute.stateChanged.connect(
+            lambda state: self.video_player.set_ai_volume(0 if state else self.widget_ai_track.slider.value())
+        )
+        
         tracks_layout.addWidget(self.widget_ai_track)
         
         tracks_group.setLayout(tracks_layout)
@@ -225,7 +232,7 @@ class MainWindow(QMainWindow):
 
     # --- Video Player Slots ---
     def play_video(self):
-        if self.video_player.state():
+        if self.video_player.is_playing:
             self.video_player.pause()
         else:
             self.video_player.play()
@@ -339,6 +346,10 @@ class MainWindow(QMainWindow):
 
     def on_audio_generated(self, segments):
         self.generated_audio_segments = segments
+        
+        # Load segments into player for preview
+        self.video_player.load_ai_segments(segments)
+        
         self.btn_generate.setEnabled(True)
         self.btn_export.setEnabled(True)
         self.widget_ai_track.setVisible(True) # Show AI Track
