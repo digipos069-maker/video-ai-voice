@@ -3,3 +3,4 @@ moviepy
 edge-tts
 anyio
 openai-whisper
+deep-translator

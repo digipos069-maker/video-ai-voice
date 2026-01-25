@@ -3,8 +3,34 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from core.audio_generator import AudioGenerator
 from core.video_processor import VideoProcessor
 from core.transcriber import Transcriber, log_debug
+from core.translator import SubtitleTranslator
 import os
 import traceback
+
+class TranslationWorker(QThread):
+    progress = pyqtSignal(int)
+    finished = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, subtitles, target_lang='km'):
+        super().__init__()
+        self.subtitles = subtitles
+        self.target_lang = target_lang
+        self.translator = SubtitleTranslator(target_lang)
+
+    def run(self):
+        try:
+            log_debug(f"Starting translation to {self.target_lang}...")
+            translated = self.translator.translate_subtitles(
+                self.subtitles, 
+                lambda p: self.progress.emit(p)
+            )
+            self.finished.emit(translated)
+            log_debug("Translation complete.")
+        except Exception as e:
+            err_msg = f"Translation failed: {str(e)}"
+            log_debug(err_msg)
+            self.error.emit(str(e))
 
 class TranscriptionWorker(QThread):
     finished = pyqtSignal(list)

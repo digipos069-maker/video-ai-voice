@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QUrl, QTime
 from PyQt5.QtGui import QIcon
 
 from ui.styles import STYLESHEET, PRIMARY_COLOR
-from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker
+from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker, TranslationWorker
 from ui.video_player import VideoPlayer
 from core.srt_parser import parse_srt
 from core.audio_generator import AudioGenerator
@@ -172,11 +172,17 @@ class MainWindow(QMainWindow):
         self.btn_auto_srt.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
         self.btn_auto_srt.clicked.connect(self.auto_generate_subtitles)
         self.btn_auto_srt.setEnabled(False)
+
+        self.btn_translate = QPushButton("Translate (Khmer)")
+        self.btn_translate.setIcon(self.style().standardIcon(QStyle.SP_DialogApplyButton)) # Apply/Check icon
+        self.btn_translate.clicked.connect(self.translate_subtitles)
+        self.btn_translate.setEnabled(False)
         
         actions_layout.addWidget(self.btn_load_video)
         actions_layout.addWidget(self.btn_load_srt)
         actions_layout.addWidget(self.btn_export_srt)
         actions_layout.addWidget(self.btn_auto_srt)
+        actions_layout.addWidget(self.btn_translate)
         left_panel.addLayout(actions_layout)
         
         layout.addLayout(left_panel, stretch=2)
@@ -315,8 +321,42 @@ class MainWindow(QMainWindow):
             self.btn_auto_srt.setEnabled(True)
         if self.subtitles:
             self.btn_export_srt.setEnabled(True)
+            self.btn_translate.setEnabled(True)
         if self.video_path and self.subtitles:
             self.btn_generate.setEnabled(True)
+
+    def translate_subtitles(self):
+        print("Translate button clicked.")
+        if not self.subtitles:
+            print("No subtitles to translate.")
+            return
+            
+        print(f"Starting translation for {len(self.subtitles)} lines...")
+        self.btn_translate.setEnabled(False)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        
+        worker = TranslationWorker(self.subtitles, target_lang='km')
+        worker.progress.connect(self.progress_bar.setValue)
+        worker.finished.connect(self.on_translation_finished)
+        worker.error.connect(lambda err: QMessageBox.critical(self, "Error", err))
+        worker.finished.connect(lambda: self._active_threads.remove(worker) if worker in self._active_threads else None)
+        
+        self._active_threads.append(worker)
+        worker.start()
+
+    def on_translation_finished(self, translated_subs):
+        self.subtitles = translated_subs
+        self.populate_table()
+        self.btn_translate.setEnabled(True)
+        self.progress_bar.setValue(100)
+        
+        # Auto-select Khmer voice to prevent errors
+        index = self.combo_voices.findText("km-KH-PisethNeural")
+        if index != -1:
+            self.combo_voices.setCurrentIndex(index)
+            
+        QMessageBox.information(self, "Success", "Translation to Khmer complete!\nVoice automatically set to 'km-KH-PisethNeural'.")
 
     def save_subtitles(self):
         if not self.subtitles:
