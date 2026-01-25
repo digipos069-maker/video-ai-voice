@@ -21,7 +21,8 @@ class SubtitleTranslator:
                     'index': sub['index'],
                     'start': sub['start'],
                     'end': sub['end'],
-                    'text': new_text
+                    'text': new_text,
+                    'original_text': sub.get('original_text', sub['text']) # Preserve original
                 })
             except Exception as e:
                 print(f"Translation error at index {i}: {e}")

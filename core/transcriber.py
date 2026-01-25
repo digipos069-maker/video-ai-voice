@@ -109,11 +109,13 @@ class Transcriber:
             
             segments = []
             for i, seg in enumerate(result['segments']):
+                text = seg['text'].strip()
                 segments.append({
                     'index': i + 1,
                     'start': seg['start'],
                     'end': seg['end'],
-                    'text': seg['text'].strip()
+                    'text': text,
+                    'original_text': text
                 })
             
             log_debug(f"Transcription complete. Segments: {len(segments)}")

@@ -25,7 +25,8 @@ def parse_srt(file_path):
             'index': index,
             'start': timestamp_to_seconds(start_str),
             'end': timestamp_to_seconds(end_str),
-            'text': text
+            'text': text,
+            'original_text': text
         })
     
     return subtitles

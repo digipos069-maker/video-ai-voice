@@ -216,9 +216,12 @@ class MainWindow(QMainWindow):
         
         # 1. Subtitle Table
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Start", "End", "Text"])
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Start", "End", "Original", "Translated"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents) # Start
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents) # End
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive) # Original
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch) # Translated (Fill rest)
         self.table.setFont(QFont("DaunPenh", 14)) # Khmer-friendly font
         right_panel.addWidget(self.table)
 
@@ -347,7 +350,13 @@ class MainWindow(QMainWindow):
         for i, sub in enumerate(self.subtitles):
             self.table.setItem(i, 0, QTableWidgetItem(self.format_time(sub['start'])))
             self.table.setItem(i, 1, QTableWidgetItem(self.format_time(sub['end'])))
-            self.table.setItem(i, 2, QTableWidgetItem(sub['text']))
+            
+            # Original Text (Default to current if original missing)
+            orig_text = sub.get('original_text', sub['text'])
+            self.table.setItem(i, 2, QTableWidgetItem(orig_text))
+            
+            # Translated Text (If same as original, maybe show empty or same)
+            self.table.setItem(i, 3, QTableWidgetItem(sub['text']))
             
         # Update Video Player
         self.video_player.set_subtitles(self.subtitles)
