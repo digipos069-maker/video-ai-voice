@@ -15,11 +15,13 @@ class VideoPlayer(QWidget):
     durationChanged = pyqtSignal(int)
     stateChanged = pyqtSignal(bool) # True = Playing, False = Paused
     importRequested = pyqtSignal() # Signal to request video import
+    thumbnailReady = pyqtSignal(QPixmap) # Signal when thumbnail is generated
 
     def __init__(self):
         super().__init__()
         self.video_path = None
         self.cap = None
+        self.video_visible = True
         self.timer = QTimer()
         self.timer.timeout.connect(self.next_frame)
         self.is_playing = False
@@ -105,6 +107,14 @@ class VideoPlayer(QWidget):
         err = self.orig_player.errorString()
         print(f"Original Audio Error: {err}")
 
+    def set_video_visible(self, visible):
+        self.video_visible = visible
+        if not visible:
+            self.label.clear()
+            self.label.setStyleSheet("background-color: black;")
+        else:
+            self.next_frame() # Refresh frame immediately
+
     def load_video(self, path):
         self.stop()
         if self.cap:
@@ -120,6 +130,20 @@ class VideoPlayer(QWidget):
         self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_sec = self.total_frames / self.fps
+        
+        # --- Extract Thumbnail ---
+        ret, frame = self.cap.read()
+        if ret:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = frame_rgb.shape
+            bytes_per_line = ch * w
+            q_img = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            thumb_pixmap = QPixmap.fromImage(q_img).scaled(64, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.thumbnailReady.emit(thumb_pixmap)
+            
+            # Reset to start
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        # -------------------------
         
         # --- FIX: Extract audio to temporary WAV for guaranteed playback ---
         temp_audio = os.path.join(os.getcwd(), "temp_preview_audio.wav")
@@ -246,14 +270,15 @@ class VideoPlayer(QWidget):
             ret, frame = self.cap.read()
             if ret:
                 # Video Rendering
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w, ch = frame.shape
-                bytes_per_line = ch * w
-                q_img = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
-                
-                pixmap = QPixmap.fromImage(q_img)
-                scaled_pixmap = pixmap.scaled(self.label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                self.label.setPixmap(scaled_pixmap)
+                if self.video_visible:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    h, w, ch = frame.shape
+                    bytes_per_line = ch * w
+                    q_img = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                    
+                    pixmap = QPixmap.fromImage(q_img)
+                    scaled_pixmap = pixmap.scaled(self.label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    self.label.setPixmap(scaled_pixmap)
                 
                 # Update Time State
                 current_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)

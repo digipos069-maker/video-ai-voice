@@ -364,3 +364,12 @@ Transcription complete. Segments: 22
 Worker thread finished successfully.
 Starting translation to km...
 Translation complete.
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 332, in load_video
+    self.widget_orig_track.setVisible(True) # Show Original Track
+    ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'widget_orig_track'
+
+--------------------

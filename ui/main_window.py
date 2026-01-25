@@ -11,6 +11,7 @@ from PyQt5.QtGui import QIcon, QFont
 from ui.styles import STYLESHEET, PRIMARY_COLOR
 from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker, TranslationWorker
 from ui.video_player import VideoPlayer
+from ui.timeline import TimelineLane
 from core.srt_parser import parse_srt
 from core.audio_generator import AudioGenerator
 
@@ -66,34 +67,51 @@ class MainWindow(QMainWindow):
         for widget in self.findChildren((QComboBox, QCheckBox)):
             widget.setCursor(Qt.PointingHandCursor)
 
-    def create_track_widget(self, label_text):
-        """Creates a track widget with label, volume slider, and mute button."""
-        container = QWidget()
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 5, 0, 5)
-
+    def create_timeline_row(self, label_text, track_type, color):
+        """Creates a row with Controls (Left) and Timeline Lane (Right)."""
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # --- LEFT: Controls ---
+        controls = QWidget()
+        controls.setFixedWidth(250) # Fixed width for alignment
+        c_layout = QHBoxLayout(controls)
+        c_layout.setContentsMargins(0, 0, 10, 0)
+        
         # Label
         lbl = QLabel(label_text)
-        lbl.setFixedWidth(120)
         
-        # Slider
-        slider = QSlider(Qt.Horizontal)
-        slider.setRange(0, 100)
-        slider.setValue(100)
+        # Controls based on type
+        if track_type == "video":
+            chk = QCheckBox("Hide")
+            c_layout.addWidget(lbl)
+            c_layout.addStretch()
+            c_layout.addWidget(chk)
+            row_widget.chk_hide = chk # Accessor
+        else:
+            # Audio controls
+            slider = QSlider(Qt.Horizontal)
+            slider.setRange(0, 100)
+            slider.setValue(100)
+            chk_mute = QCheckBox("Mute")
+            chk_mute.stateChanged.connect(lambda: slider.setEnabled(not chk_mute.isChecked()))
+            
+            c_layout.addWidget(lbl)
+            c_layout.addWidget(slider)
+            c_layout.addWidget(chk_mute)
+            
+            row_widget.slider = slider # Accessor
+            row_widget.chk_mute = chk_mute # Accessor
+
+        # --- RIGHT: Timeline Lane ---
+        lane = TimelineLane(track_type, color)
         
-        # Mute Checkbox
-        chk_mute = QCheckBox("Mute")
+        row_layout.addWidget(controls)
+        row_layout.addWidget(lane)
         
-        # Logic to enable/disable slider and emit changes
-        chk_mute.stateChanged.connect(lambda: slider.setEnabled(not chk_mute.isChecked()))
-        
-        layout.addWidget(lbl)
-        layout.addWidget(slider)
-        layout.addWidget(chk_mute)
-        
-        container.slider = slider
-        container.chk_mute = chk_mute
-        return container
+        row_widget.lane = lane # Accessor
+        return row_widget
 
     def setup_editor_tab(self):
         layout = QHBoxLayout(self.editor_tab)
@@ -107,9 +125,10 @@ class MainWindow(QMainWindow):
         self.video_player.positionChanged.connect(self.position_changed)
         self.video_player.durationChanged.connect(self.duration_changed)
         self.video_player.importRequested.connect(self.load_video) # Connect click-to-import
+        # self.video_player.thumbnailReady.connect(...) # Thumbnail not used in this specific layout version
         left_panel.addWidget(self.video_player)
 
-        # 2. Player Controls
+        # 2. Player Controls (Play + Seek)
         controls_layout = QHBoxLayout()
         self.btn_play = QPushButton("Play")
         self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -121,36 +140,36 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.slider_seek)
         left_panel.addLayout(controls_layout)
 
-        # --- Audio Tracks (New) ---
-        tracks_group = QGroupBox("Audio Tracks")
-        tracks_layout = QVBoxLayout()
+        # --- TIMELINE (Visual Tracks) ---
+        timeline_group = QGroupBox("Timeline")
+        timeline_layout = QVBoxLayout()
+        timeline_layout.setSpacing(2)
         
-        self.widget_orig_track = self.create_track_widget("Original Audio")
-        self.widget_orig_track.setVisible(False) # Hidden initially
+        # Video Track (Blue)
+        self.row_video = self.create_timeline_row("Video Track", "video", "#3498DB")
+        self.row_video.chk_hide.stateChanged.connect(lambda state: self.video_player.set_video_visible(not state))
+        timeline_layout.addWidget(self.row_video)
         
-        # Connect Volume Control
-        self.widget_orig_track.slider.valueChanged.connect(self.video_player.set_orig_volume)
-        self.widget_orig_track.chk_mute.stateChanged.connect(
-            lambda state: self.video_player.set_orig_volume(0 if state else self.widget_orig_track.slider.value())
+        # Original Audio (Green)
+        self.row_audio = self.create_timeline_row("Original Audio", "audio", "#2ECC71")
+        self.row_audio.slider.valueChanged.connect(self.video_player.set_orig_volume)
+        self.row_audio.chk_mute.stateChanged.connect(
+            lambda state: self.video_player.set_orig_volume(0 if state else self.row_audio.slider.value())
         )
+        timeline_layout.addWidget(self.row_audio)
         
-        tracks_layout.addWidget(self.widget_orig_track)
-        
-        self.widget_ai_track = self.create_track_widget("AI Voiceover")
-        self.widget_ai_track.setVisible(False) # Hidden initially
-        
-        # Connect AI Volume Control
-        self.widget_ai_track.slider.valueChanged.connect(self.video_player.set_ai_volume)
-        self.widget_ai_track.chk_mute.stateChanged.connect(
-            lambda state: self.video_player.set_ai_volume(0 if state else self.widget_ai_track.slider.value())
+        # AI Audio (Purple)
+        self.row_ai = self.create_timeline_row("AI Voiceover", "ai", "#9B59B6")
+        self.row_ai.slider.valueChanged.connect(self.video_player.set_ai_volume)
+        self.row_ai.chk_mute.stateChanged.connect(
+            lambda state: self.video_player.set_ai_volume(0 if state else self.row_ai.slider.value())
         )
+        timeline_layout.addWidget(self.row_ai)
         
-        tracks_layout.addWidget(self.widget_ai_track)
-        
-        tracks_group.setLayout(tracks_layout)
-        left_panel.addWidget(tracks_group)
+        timeline_group.setLayout(timeline_layout)
+        left_panel.addWidget(timeline_group)
 
-        # Spacer to push buttons to bottom
+        # Spacer
         left_panel.addStretch()
 
         # 3. Import Buttons (Moved to Bottom)
@@ -276,12 +295,27 @@ class MainWindow(QMainWindow):
         self.slider_seek.blockSignals(True)
         self.slider_seek.setValue(position)
         self.slider_seek.blockSignals(False)
+        
+        # Update Timeline Playheads
+        self.row_video.lane.set_current_time(position)
+        self.row_audio.lane.set_current_time(position)
+        self.row_ai.lane.set_current_time(position)
 
     def duration_changed(self, duration):
         self.slider_seek.setRange(0, duration)
+        
+        # Update Timeline Duration
+        self.row_video.lane.set_duration(duration)
+        self.row_audio.lane.set_duration(duration)
+        self.row_ai.lane.set_duration(duration)
 
     def set_position(self, position):
         self.video_player.set_position(position)
+        
+        # Update Playhead Position
+        self.row_video.lane.set_current_time(position)
+        self.row_audio.lane.set_current_time(position)
+        self.row_ai.lane.set_current_time(position)
 
     # --- File Loading ---
     def load_video(self, path=None):
@@ -422,9 +456,12 @@ class MainWindow(QMainWindow):
         # Load segments into player for preview
         self.video_player.load_ai_segments(segments)
         
+        # Update Timeline Visualization
+        self.row_ai.lane.set_segments(segments)
+        
         self.btn_generate.setEnabled(True)
         self.btn_export.setEnabled(True)
-        self.widget_ai_track.setVisible(True) # Show AI Track
+        # self.widget_ai_track.setVisible(True) # No longer needed as row is always visible but empty
         QMessageBox.information(self, "Success", "Audio generation complete! You can now export the video.")
 
     def export_video(self):
