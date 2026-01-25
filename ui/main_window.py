@@ -329,7 +329,7 @@ class MainWindow(QMainWindow):
             if success:
                 self.video_path = path
                 self.btn_play.setEnabled(True)
-                self.widget_orig_track.setVisible(True) # Show Original Track
+                # self.widget_orig_track.setVisible(True) # Removed as timeline is static
                 self.check_enable_generate()
             else:
                 QMessageBox.critical(self, "Error", err)
@@ -467,16 +467,16 @@ class MainWindow(QMainWindow):
     def export_video(self):
         output_path, _ = QFileDialog.getSaveFileName(self, "Save Video", "", "MP4 Files (*.mp4)")
         if output_path:
-            # Calculate Volumes from new widgets
-            if self.widget_orig_track.chk_mute.isChecked():
+            # Calculate Volumes from timeline controls
+            if self.row_audio.chk_mute.isChecked():
                 vol_orig = 0.0
             else:
-                vol_orig = self.widget_orig_track.slider.value() / 100.0
+                vol_orig = self.row_audio.slider.value() / 100.0
 
-            if self.widget_ai_track.chk_mute.isChecked():
+            if self.row_ai.chk_mute.isChecked():
                 vol_ai = 0.0
             else:
-                vol_ai = self.widget_ai_track.slider.value() / 100.0
+                vol_ai = self.row_ai.slider.value() / 100.0
             
             self.thread_export = VideoExportWorker(
                 self.video_path, 
