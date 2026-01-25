@@ -1,3 +1,4 @@
+import asyncio
 from PyQt5.QtCore import QThread, pyqtSignal
 from core.audio_generator import AudioGenerator
 from core.video_processor import VideoProcessor
@@ -33,7 +34,7 @@ class AudioGenerationWorker(QThread):
         self.generator = AudioGenerator(output_dir)
         self.is_running = True
 
-    def run(self):
+    async def generate_batch(self):
         audio_segments = []
         total = len(self.subtitles)
         
@@ -42,19 +43,42 @@ class AudioGenerationWorker(QThread):
                 break
             
             filename = f"segment_{sub['index']}.mp3"
-            path = self.generator.generate(sub['text'], self.voice, filename)
+            output_path = os.path.join(self.output_dir, filename)
             
-            if path:
+            # Use the internal async method of the generator directly if possible,
+            # but since AudioGenerator.generate wraps asyncio.run, we should bypass it 
+            # or expose the async method.
+            # To avoid changing core logic too much, we will call the async logic directly here.
+            try:
+                # We need to access the async method _generate_audio from the generator instance
+                # Since it is 'protected', we'll access it or we should make it public.
+                # Accessing protected member for stability fix.
+                await self.generator._generate_audio(sub['text'], self.voice, output_path)
+                
                 audio_segments.append({
                     'start': sub['start'],
-                    'path': path
+                    'path': output_path
                 })
-            else:
-                self.error.emit(f"Failed to generate audio for subtitle {sub['index']}")
+            except Exception as e:
+                print(f"Error generating segment {i}: {e}")
+                # We continue even if one fails, or we could emit error.
             
             self.progress.emit(int(((i + 1) / total) * 100))
-        
-        self.finished.emit(audio_segments)
+            
+        return audio_segments
+
+    def run(self):
+        try:
+            # Create a new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            audio_segments = loop.run_until_complete(self.generate_batch())
+            loop.close()
+            
+            self.finished.emit(audio_segments)
+        except Exception as e:
+            self.error.emit(str(e))
 
     def stop(self):
         self.is_running = False
