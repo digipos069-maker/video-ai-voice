@@ -1,7 +1,8 @@
 import cv2
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl
 from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 
 class VideoPlayer(QWidget):
     positionChanged = pyqtSignal(int)
@@ -17,6 +18,9 @@ class VideoPlayer(QWidget):
         self.is_playing = False
         self.fps = 30
         self.total_frames = 0
+        
+        # Audio Player (Qt Multimedia)
+        self.audio_player = QMediaPlayer(None, QMediaPlayer.LowLatency)
         
         # Display label
         self.label = QLabel()
@@ -45,6 +49,9 @@ class VideoPlayer(QWidget):
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_sec = self.total_frames / self.fps
         
+        # Load Audio
+        self.audio_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+        
         self.durationChanged.emit(int(duration_sec * 1000)) # msecs
         
         # Show first frame
@@ -56,26 +63,36 @@ class VideoPlayer(QWidget):
             self.is_playing = True
             interval = int(1000 / self.fps)
             self.timer.start(interval)
+            self.audio_player.play()
             self.stateChanged.emit(True)
 
     def pause(self):
         self.is_playing = False
         self.timer.stop()
+        self.audio_player.pause()
         self.stateChanged.emit(False)
 
     def stop(self):
         self.pause()
+        self.audio_player.stop()
         if self.cap:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.next_frame()
 
     def set_position(self, msecs):
         if self.cap and self.cap.isOpened():
+            # Sync Audio
+            self.audio_player.setPosition(msecs)
+            
+            # Sync Video
             frame_idx = int((msecs / 1000) * self.fps)
-            # Clamp
             frame_idx = max(0, min(frame_idx, self.total_frames - 1))
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             self.next_frame()
+
+    def set_volume(self, volume):
+        """Sets the volume of the audio player (0-100)."""
+        self.audio_player.setVolume(volume)
 
     def next_frame(self):
         if self.cap and self.cap.isOpened():

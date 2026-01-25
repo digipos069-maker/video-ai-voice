@@ -113,3 +113,11 @@ Initializing OpenAI Whisper Model...
 Whisper Model loaded (CPU).
 Transcription complete. Segments: 22
 Worker thread finished successfully.
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 1 [559791144_Episode-1].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 22
+Worker thread finished successfully.

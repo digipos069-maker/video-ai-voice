@@ -70,6 +70,8 @@ class MainWindow(QMainWindow):
         
         # Mute Checkbox
         chk_mute = QCheckBox("Mute")
+        
+        # Logic to enable/disable slider and emit changes
         chk_mute.stateChanged.connect(lambda: slider.setEnabled(not chk_mute.isChecked()))
         
         layout.addWidget(lbl)
@@ -110,6 +112,13 @@ class MainWindow(QMainWindow):
         
         self.widget_orig_track = self.create_track_widget("Original Audio")
         self.widget_orig_track.setVisible(False) # Hidden initially
+        
+        # Connect Volume Control
+        self.widget_orig_track.slider.valueChanged.connect(self.video_player.set_volume)
+        self.widget_orig_track.chk_mute.stateChanged.connect(
+            lambda state: self.video_player.set_volume(0 if state else self.widget_orig_track.slider.value())
+        )
+        
         tracks_layout.addWidget(self.widget_orig_track)
         
         self.widget_ai_track = self.create_track_widget("AI Voiceover")
