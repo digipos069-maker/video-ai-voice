@@ -128,16 +128,18 @@ class MainWindow(QMainWindow):
         # self.video_player.thumbnailReady.connect(...) # Thumbnail not used in this specific layout version
         left_panel.addWidget(self.video_player)
 
-        # 2. Player Controls (Play + Seek)
+        # 2. Player Controls (Centered Play Button)
         controls_layout = QHBoxLayout()
+        controls_layout.addStretch()
+        
         self.btn_play = QPushButton("Play")
+        self.btn_play.setFixedWidth(100) # Make it bigger/distinct
         self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.btn_play.clicked.connect(self.play_video)
-        self.slider_seek = QSlider(Qt.Horizontal)
-        self.slider_seek.sliderMoved.connect(self.set_position)
         
         controls_layout.addWidget(self.btn_play)
-        controls_layout.addWidget(self.slider_seek)
+        controls_layout.addStretch()
+        
         left_panel.addLayout(controls_layout)
 
         # --- TIMELINE (Visual Tracks) ---
@@ -148,6 +150,7 @@ class MainWindow(QMainWindow):
         # Video Track (Blue)
         self.row_video = self.create_timeline_row("Video Track", "video", "#3498DB")
         self.row_video.chk_hide.stateChanged.connect(lambda state: self.video_player.set_video_visible(not state))
+        self.row_video.lane.seekRequested.connect(self.set_position) # Enable seeking
         timeline_layout.addWidget(self.row_video)
         
         # Original Audio (Green)
@@ -156,6 +159,7 @@ class MainWindow(QMainWindow):
         self.row_audio.chk_mute.stateChanged.connect(
             lambda state: self.video_player.set_orig_volume(0 if state else self.row_audio.slider.value())
         )
+        self.row_audio.lane.seekRequested.connect(self.set_position) # Enable seeking
         timeline_layout.addWidget(self.row_audio)
         
         # AI Audio (Purple)
@@ -164,6 +168,7 @@ class MainWindow(QMainWindow):
         self.row_ai.chk_mute.stateChanged.connect(
             lambda state: self.video_player.set_ai_volume(0 if state else self.row_ai.slider.value())
         )
+        self.row_ai.lane.seekRequested.connect(self.set_position) # Enable seeking
         timeline_layout.addWidget(self.row_ai)
         
         timeline_group.setLayout(timeline_layout)
@@ -287,23 +292,18 @@ class MainWindow(QMainWindow):
     def media_state_changed(self, is_playing):
         if is_playing:
             self.btn_play.setText("Pause")
+            self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         else:
             self.btn_play.setText("Play")
+            self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def position_changed(self, position):
-        # Block signals to prevent feedback loop while seeking manually
-        self.slider_seek.blockSignals(True)
-        self.slider_seek.setValue(position)
-        self.slider_seek.blockSignals(False)
-        
         # Update Timeline Playheads
         self.row_video.lane.set_current_time(position)
         self.row_audio.lane.set_current_time(position)
         self.row_ai.lane.set_current_time(position)
 
     def duration_changed(self, duration):
-        self.slider_seek.setRange(0, duration)
-        
         # Update Timeline Duration
         self.row_video.lane.set_duration(duration)
         self.row_audio.lane.set_duration(duration)

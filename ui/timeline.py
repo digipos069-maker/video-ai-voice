@@ -3,16 +3,34 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QBrush, QPen
 
 class TimelineLane(QWidget):
+
+    seekRequested = pyqtSignal(int) # Emits msecs
+
+
+
     def __init__(self, track_type="video", color="#333333"):
+
         super().__init__()
+
         self.track_type = track_type
+
         self.base_color = QColor(color)
+
         self.segments = [] # For AI track
+
         self.duration_ms = 1 # Avoid div by zero
+
         self.setFixedHeight(40) # Height of the track
+
         self.current_time_ms = 0
 
+        self.setCursor(Qt.PointingHandCursor) # Indicate clickable
+
+
+
     def set_duration(self, duration_ms):
+
+
         self.duration_ms = max(1, duration_ms)
         self.update()
 
@@ -73,3 +91,18 @@ class TimelineLane(QWidget):
         playhead_x = int(self.current_time_ms * px_per_ms)
         painter.setPen(QPen(QColor("red"), 2))
         painter.drawLine(playhead_x, 0, playhead_x, h)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._calculate_seek(event.x())
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton:
+            self._calculate_seek(event.x())
+
+    def _calculate_seek(self, x):
+        width = self.width()
+        if width > 0:
+            ratio = max(0, min(x, width)) / width
+            seek_time = int(ratio * self.duration_ms)
+            self.seekRequested.emit(seek_time)
