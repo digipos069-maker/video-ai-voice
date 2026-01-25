@@ -53,6 +53,33 @@ class MainWindow(QMainWindow):
         self.setup_settings_tab()
         self.tabs.addTab(self.settings_tab, "Settings")
 
+    def create_track_widget(self, label_text):
+        """Creates a track widget with label, volume slider, and mute button."""
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 5, 0, 5)
+
+        # Label
+        lbl = QLabel(label_text)
+        lbl.setFixedWidth(120)
+        
+        # Slider
+        slider = QSlider(Qt.Horizontal)
+        slider.setRange(0, 100)
+        slider.setValue(100)
+        
+        # Mute Checkbox
+        chk_mute = QCheckBox("Mute")
+        chk_mute.stateChanged.connect(lambda: slider.setEnabled(not chk_mute.isChecked()))
+        
+        layout.addWidget(lbl)
+        layout.addWidget(slider)
+        layout.addWidget(chk_mute)
+        
+        container.slider = slider
+        container.chk_mute = chk_mute
+        return container
+
     def setup_editor_tab(self):
         layout = QHBoxLayout(self.editor_tab)
 
@@ -76,6 +103,21 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.btn_play)
         controls_layout.addWidget(self.slider_seek)
         left_panel.addLayout(controls_layout)
+
+        # --- Audio Tracks (New) ---
+        tracks_group = QGroupBox("Audio Tracks")
+        tracks_layout = QVBoxLayout()
+        
+        self.widget_orig_track = self.create_track_widget("Original Audio")
+        self.widget_orig_track.setVisible(False) # Hidden initially
+        tracks_layout.addWidget(self.widget_orig_track)
+        
+        self.widget_ai_track = self.create_track_widget("AI Voiceover")
+        self.widget_ai_track.setVisible(False) # Hidden initially
+        tracks_layout.addWidget(self.widget_ai_track)
+        
+        tracks_group.setLayout(tracks_layout)
+        left_panel.addWidget(tracks_group)
 
         # Spacer to push buttons to bottom
         left_panel.addStretch()
@@ -114,42 +156,7 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         right_panel.addWidget(self.table)
 
-        # 2. Audio Mixer (New Feature)
-        mixer_group = QGroupBox("Audio Mixer")
-        mixer_layout = QGridLayout()
-
-        # Original Audio Row
-        mixer_layout.addWidget(QLabel("Original Video Sound:"), 0, 0)
-        
-        self.slider_orig_vol = QSlider(Qt.Horizontal)
-        self.slider_orig_vol.setRange(0, 100)
-        self.slider_orig_vol.setValue(100) # Default 100%
-        mixer_layout.addWidget(self.slider_orig_vol, 0, 1)
-
-        self.check_mute_orig = QCheckBox("Mute")
-        self.check_mute_orig.stateChanged.connect(
-            lambda: self.slider_orig_vol.setEnabled(not self.check_mute_orig.isChecked())
-        )
-        mixer_layout.addWidget(self.check_mute_orig, 0, 2)
-
-        # AI Audio Row
-        mixer_layout.addWidget(QLabel("AI Voiceover:"), 1, 0)
-        
-        self.slider_ai_vol = QSlider(Qt.Horizontal)
-        self.slider_ai_vol.setRange(0, 100)
-        self.slider_ai_vol.setValue(100) # Default 100%
-        mixer_layout.addWidget(self.slider_ai_vol, 1, 1)
-
-        self.check_mute_ai = QCheckBox("Mute")
-        self.check_mute_ai.stateChanged.connect(
-            lambda: self.slider_ai_vol.setEnabled(not self.check_mute_ai.isChecked())
-        )
-        mixer_layout.addWidget(self.check_mute_ai, 1, 2)
-
-        mixer_group.setLayout(mixer_layout)
-        right_panel.addWidget(mixer_group)
-
-        # 3. Generation Controls
+        # 2. Generation Controls
         gen_group = QGroupBox("Process")
         gen_layout = QVBoxLayout()
         
@@ -240,6 +247,7 @@ class MainWindow(QMainWindow):
             if success:
                 self.video_path = path
                 self.btn_play.setEnabled(True)
+                self.widget_orig_track.setVisible(True) # Show Original Track
                 self.check_enable_generate()
             else:
                 QMessageBox.critical(self, "Error", err)
@@ -324,21 +332,22 @@ class MainWindow(QMainWindow):
         self.generated_audio_segments = segments
         self.btn_generate.setEnabled(True)
         self.btn_export.setEnabled(True)
+        self.widget_ai_track.setVisible(True) # Show AI Track
         QMessageBox.information(self, "Success", "Audio generation complete! You can now export the video.")
 
     def export_video(self):
         output_path, _ = QFileDialog.getSaveFileName(self, "Save Video", "", "MP4 Files (*.mp4)")
         if output_path:
-            # Calculate Volumes
-            if self.check_mute_orig.isChecked():
+            # Calculate Volumes from new widgets
+            if self.widget_orig_track.chk_mute.isChecked():
                 vol_orig = 0.0
             else:
-                vol_orig = self.slider_orig_vol.value() / 100.0
+                vol_orig = self.widget_orig_track.slider.value() / 100.0
 
-            if self.check_mute_ai.isChecked():
+            if self.widget_ai_track.chk_mute.isChecked():
                 vol_ai = 0.0
             else:
-                vol_ai = self.slider_ai_vol.value() / 100.0
+                vol_ai = self.widget_ai_track.slider.value() / 100.0
             
             self.thread_export = VideoExportWorker(
                 self.video_path, 
