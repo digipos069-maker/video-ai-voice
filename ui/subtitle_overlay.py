@@ -13,11 +13,11 @@ class SubtitleOverlay(QLabel):
         
         # Default Style
         self.style_settings = {
-            'font_family': 'Leelawadee UI',
-            'font_size': 24,
+            'font_family': 'DaunPenh', # Better legacy support for Khmer
+            'font_size': 32, # DaunPenh is smaller, so increase default size
             'color': '#FFFFFF',
             'outline_color': '#000000',
-            'is_bold': True,
+            'is_bold': False, # Complex scripts often look bad bolded
             'is_italic': False,
             'bg_color': 'transparent' # Or rgba(0,0,0,150)
         }

@@ -284,9 +284,13 @@ class MainWindow(QMainWindow):
         self.video_player.set_position(position)
 
     # --- File Loading ---
-    def load_video(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mkv *.mov)")
+    def load_video(self, path=None):
+        # Allow calling from signal with or without path
+        if not path:
+            path, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mkv *.mov)")
+        
         if path:
+            self.video_player.release_audio() # Release previous files
             success, err = self.video_player.load_video(path)
             if success:
                 self.video_path = path
@@ -400,6 +404,9 @@ class MainWindow(QMainWindow):
 
     def generate_voice(self):
         voice = self.combo_voices.currentText()
+        
+        # Release existing audio files to prevent [Errno 13] Permission denied
+        self.video_player.release_audio()
         
         self.thread_audio = AudioGenerationWorker(self.subtitles, voice, self.output_dir)
         self.thread_audio.progress.connect(self.progress_bar.setValue)

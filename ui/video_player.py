@@ -193,6 +193,13 @@ class VideoPlayer(QWidget):
         self.current_msec = 0
         self.next_ai_index = 0
 
+    def release_audio(self):
+        """Releases file locks on audio files."""
+        self.stop()
+        self.orig_player.setMedia(QMediaContent())
+        self.ai_player.setMedia(QMediaContent())
+        self.ai_segments = []
+
     def set_position(self, msecs):
         if self.cap and self.cap.isOpened():
             self.current_msec = msecs

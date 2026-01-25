@@ -280,3 +280,33 @@ Transcription complete. Segments: 22
 Worker thread finished successfully.
 Starting translation to km...
 Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 13 [559791156_Episode-13].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 3
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 8 [559791151_Episode-8].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 13
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/test/ep_41000101432_nothing-else-compares-dubbed/Nothing Else Compares（DUBBED) Episode 1 [559791144_Episode-1].mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 22
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
