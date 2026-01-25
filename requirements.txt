@@ -1,0 +1,5 @@
+PyQt5
+moviepy
+edge-tts
+anyio
+faster-whisper

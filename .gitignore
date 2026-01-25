@@ -1,0 +1,6 @@
+# Ignore Python specific files
+__pycache__/
+*.pyc
+*.pyo
+# For Python 3.2+ in the local directory
+*cpython-3*.pyc
