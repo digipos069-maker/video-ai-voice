@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
         self.video_player.stateChanged.connect(self.media_state_changed)
         self.video_player.positionChanged.connect(self.position_changed)
         self.video_player.durationChanged.connect(self.duration_changed)
+        self.video_player.importRequested.connect(self.load_video) # Connect click-to-import
         left_panel.addWidget(self.video_player)
 
         # 2. Player Controls

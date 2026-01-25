@@ -199,3 +199,26 @@ Initializing OpenAI Whisper Model...
 Whisper Model loaded (CPU).
 Transcription complete. Segments: 22
 Worker thread finished successfully.
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\main.py", line 36, in <module>
+    main()
+    ~~~~^^
+  File "E:\project\videoAIVoice\main.py", line 31, in main
+    window = MainWindow()
+  File "E:\project\videoAIVoice\ui\main_window.py", line 33, in __init__
+    self.init_ui()
+    ~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 48, in init_ui
+    self.setup_editor_tab()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 92, in setup_editor_tab
+    self.video_player = VideoPlayer()
+                        ~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\video_player.py", line 51, in __init__
+    self.sub_overlay.doubleClicked.connect(self.open_style_editor)
+                                           ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'VideoPlayer' object has no attribute 'open_style_editor'
+
+--------------------

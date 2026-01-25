@@ -3,8 +3,8 @@ import os
 import subprocess
 import imageio_ffmpeg
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QWidget, QVBoxLayout, QMessageBox
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl, QSize
+from PyQt5.QtGui import QImage, QPixmap, QIcon
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 
 from ui.subtitle_overlay import SubtitleOverlay
@@ -14,6 +14,7 @@ class VideoPlayer(QWidget):
     positionChanged = pyqtSignal(int)
     durationChanged = pyqtSignal(int)
     stateChanged = pyqtSignal(bool) # True = Playing, False = Paused
+    importRequested = pyqtSignal() # Signal to request video import
 
     def __init__(self):
         super().__init__()
@@ -42,7 +43,7 @@ class VideoPlayer(QWidget):
         # Display label
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("background-color: black;")
+        self.label.setStyleSheet("background-color: #333333; color: #AAAAAA; font-size: 16px;")
         self.label.setMinimumSize(640, 360)
         self.label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
@@ -54,6 +55,20 @@ class VideoPlayer(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.label)
         self.setLayout(layout)
+        
+        self.show_placeholder()
+
+    def show_placeholder(self):
+        """Displays the placeholder icon and text."""
+        # Create a placeholder pixmap/text
+        self.label.clear()
+        self.label.setText("No Video Selected\n\nClick 'Import Video' to start")
+        
+        # If we had a fancy icon, we could set it, but text is clearer for now
+        # combined with the dark background.
+        
+        # Ensure overlay is hidden
+        self.sub_overlay.hide()
 
     def set_subtitles(self, subtitles):
         """
@@ -63,6 +78,11 @@ class VideoPlayer(QWidget):
         self.sub_overlay.show() if subtitles else self.sub_overlay.hide()
         # Default Position (Bottom Center)
         self.sub_overlay.move(50, self.label.height() - 100)
+
+    def mousePressEvent(self, event):
+        if not self.video_path and event.button() == Qt.LeftButton:
+            self.importRequested.emit()
+        super().mousePressEvent(event)
 
     def open_style_editor(self):
         self.pause() # Pause video while editing
@@ -84,6 +104,7 @@ class VideoPlayer(QWidget):
         self.cap = cv2.VideoCapture(path)
         
         if not self.cap.isOpened():
+            self.show_placeholder()
             return False, "Could not open video file."
             
         self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
