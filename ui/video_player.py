@@ -86,10 +86,20 @@ class VideoPlayer(QWidget):
 
     def open_style_editor(self):
         self.pause() # Pause video while editing
-        dialog = SubtitleStyleDialog(self.sub_overlay.style_settings, self)
+        original_settings = self.sub_overlay.style_settings.copy()
+        
+        dialog = SubtitleStyleDialog(original_settings, self)
+        
+        # Connect Live Preview
+        dialog.styleChanged.connect(self.sub_overlay.update_style)
+        
         if dialog.exec_():
+            # Accepted: Keep changes (already applied via signals or get final state)
             new_settings = dialog.get_settings()
             self.sub_overlay.update_style(new_settings)
+        else:
+            # Rejected: Revert to original
+            self.sub_overlay.update_style(original_settings)
 
     def _handle_audio_error(self):
         err = self.orig_player.errorString()
@@ -252,16 +262,25 @@ class VideoPlayer(QWidget):
                 
                 # Update Subtitle Text
                 found_sub = False
+                
+                # Simple optimization: check surrounding subtitles first if index known, but simple loop is fast enough for <1000 subs
                 for sub in self.subtitles:
-                    if sub['start'] <= current_sec <= sub['end']:
+                    # Precise sync: start <= time < end
+                    if sub['start'] <= current_sec < sub['end']:
                         if self.sub_overlay.text() != sub['text']:
                             self.sub_overlay.setText(sub['text'])
                             self.sub_overlay.adjustSize()
+                            self.sub_overlay.show() # Make sure it's visible
+                        elif self.sub_overlay.isHidden():
+                            self.sub_overlay.show() # Show if it was hidden
                         found_sub = True
                         break
                 
-                if not found_sub and self.sub_overlay.text() != "":
-                    self.sub_overlay.setText("")
+                # If we are in a gap (no one talking), clear the text and hide
+                if not found_sub:
+                    if self.sub_overlay.isVisible():
+                        self.sub_overlay.setText("")
+                        self.sub_overlay.hide() # Hide completely to remove background box
                 
                 # Check AI Triggers
                 if self.is_playing and self.next_ai_index < len(self.ai_segments):

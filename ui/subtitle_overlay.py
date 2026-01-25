@@ -19,7 +19,8 @@ class SubtitleOverlay(QLabel):
             'outline_color': '#000000',
             'is_bold': False, # Complex scripts often look bad bolded
             'is_italic': False,
-            'bg_color': 'transparent' # Or rgba(0,0,0,150)
+            'bg_color': 'transparent', # Or rgba(0,0,0,150)
+            'padding': 0
         }
         
         # Internal state for dragging
@@ -53,8 +54,9 @@ class SubtitleOverlay(QLabel):
                 font-style: {'italic' if s['is_italic'] else 'normal'};
                 color: {s['color']};
                 background-color: {s['bg_color']};
-                padding: 4px;
+                padding: {s.get('padding', 0)}px;
                 border-radius: 4px;
+                qproperty-alignment: AlignCenter;
             }}
         """)
         

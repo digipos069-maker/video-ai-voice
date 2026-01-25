@@ -195,7 +195,7 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Start", "End", "Text"])
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self.table.setFont(QFont("Leelawadee UI", 11)) # Khmer-friendly font
+        self.table.setFont(QFont("DaunPenh", 14)) # Khmer-friendly font
         right_panel.addWidget(self.table)
 
         # 2. Generation Controls
