@@ -373,3 +373,38 @@ Traceback (most recent call last):
 AttributeError: 'MainWindow' object has no attribute 'widget_orig_track'
 
 --------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\main.py", line 36, in <module>
+    main()
+    ~~~~^^
+  File "E:\project\videoAIVoice\main.py", line 31, in main
+    window = MainWindow()
+  File "E:\project\videoAIVoice\ui\main_window.py", line 36, in __init__
+    self.init_ui()
+    ~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 60, in init_ui
+    self.downloader_tab = DownloaderTab()
+                          ~~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\downloader_tab.py", line 104, in __init__
+    self.init_ui()
+    ~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\downloader_tab.py", line 111, in init_ui
+    input_layout = QGridLayout()
+                   ^^^^^^^^^^^
+NameError: name 'QGridLayout' is not defined. Did you mean: 'QVBoxLayout'?
+
+--------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\main.py", line 36, in <module>
+    main()
+    ~~~~^^
+  File "E:\project\videoAIVoice\main.py", line 33, in main
+    sys.exit(app.exec_())
+             ~~~~~~~~~^^
+KeyboardInterrupt
+
+--------------------

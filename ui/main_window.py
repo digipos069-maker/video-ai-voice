@@ -12,6 +12,7 @@ from ui.styles import STYLESHEET, PRIMARY_COLOR
 from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker, TranslationWorker
 from ui.video_player import VideoPlayer
 from ui.timeline import TimelineLane
+from ui.downloader_tab import DownloaderTab
 from core.srt_parser import parse_srt
 from core.audio_generator import AudioGenerator
 from core.settings_manager import SettingsManager
@@ -54,6 +55,10 @@ class MainWindow(QMainWindow):
         self.settings_tab = QWidget()
         self.setup_settings_tab()
         self.tabs.addTab(self.settings_tab, "Settings")
+
+        # Tab 3: Downloader
+        self.downloader_tab = DownloaderTab()
+        self.tabs.addTab(self.downloader_tab, "Downloader")
         
         # Apply cursors to all buttons
         self.set_cursors()
