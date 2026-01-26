@@ -4,6 +4,7 @@ import json
 import os
 import time
 import re
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 class GoodShortDownloader:
     def __init__(self):
@@ -27,53 +28,76 @@ class GoodShortDownloader:
         """
         try:
             self.base_url = url
-            response = self.session.get(url, headers=self.headers)
-            response.raise_for_status()
-            html = response.text
-            soup = BeautifulSoup(html, 'html.parser')
-
+            all_episodes = []
             drama_title = "Unknown Drama"
-            episodes = []
+
+            base_url, start_page = self._split_pagination_url(url)
+            page = start_page
+
+            while True:
+                page_url = self._build_page_url(base_url, page)
+                response = self.session.get(page_url, headers=self.headers)
+                response.raise_for_status()
+                html = response.text
+                soup = BeautifulSoup(html, 'html.parser')
+
+                episodes = []
             
             # Strategy 1: JSON-LD (Schema.org)
             # Good for basic info, often misses deep links for locked content
-            scripts = soup.find_all('script', type='application/ld+json')
-            for script in scripts:
-                try:
-                    data = json.loads(script.string)
-                    if isinstance(data, dict): items = [data]
-                    elif isinstance(data, list): items = data
-                    else: continue
-                    
-                    for item in items:
-                        if item.get('@type') == 'ItemList':
-                            for el in item.get('itemListElement', []):
-                                if el.get('@type') == 'VideoObject':
-                                    self._parse_video_object(el, episodes)
-                        elif item.get('@type') == 'VideoObject':
-                            self._parse_video_object(item, episodes)
-                except: pass
+                scripts = soup.find_all('script', type='application/ld+json')
+                for script in scripts:
+                    try:
+                        data = json.loads(script.string)
+                        if isinstance(data, dict): items = [data]
+                        elif isinstance(data, list): items = data
+                        else: continue
+                        
+                        for item in items:
+                            if item.get('@type') == 'ItemList':
+                                for el in item.get('itemListElement', []):
+                                    if el.get('@type') == 'VideoObject':
+                                        self._parse_video_object(el, episodes)
+                            elif item.get('@type') == 'VideoObject':
+                                self._parse_video_object(item, episodes)
+                    except: pass
 
             # Strategy 2: window.__INITIAL_STATE__ (Internal React State)
             # Often contains the true state, including m3u8Path for unlocked episodes
-            initial_state_match = re.search(r'window\.__INITIAL_STATE__=(.*?);?\s*(\n|<)', html)
-            if not initial_state_match:
-                 # Try greedy match if simple one fails
-                 initial_state_match = re.search(r'window\.__INITIAL_STATE__=(.*)', html)
+                initial_state_match = re.search(r'window\.__INITIAL_STATE__=(.*?);?\s*(\n|<)', html)
+                if not initial_state_match:
+                     # Try greedy match if simple one fails
+                     initial_state_match = re.search(r'window\.__INITIAL_STATE__=(.*)', html)
 
-            if initial_state_match:
-                try:
-                    # We need a robust JSON extractor as regex is brittle
-                    json_str = self._extract_balanced_json(html, initial_state_match.start(1))
-                    if json_str:
-                        state_data = json.loads(json_str)
-                        self._parse_initial_state(state_data, episodes)
-                except Exception as e:
-                    print(f"Error parsing INITIAL_STATE: {e}")
+                if initial_state_match:
+                    try:
+                        # We need a robust JSON extractor as regex is brittle
+                        json_str = self._extract_balanced_json(html, initial_state_match.start(1))
+                        if json_str:
+                            state_data = json.loads(json_str)
+                            self._parse_initial_state(state_data, episodes)
+                    except Exception as e:
+                        print(f"Error parsing INITIAL_STATE: {e}")
+
+                if not episodes:
+                    break
+
+                # Safety check: Loop detection
+                # Check if the first episode of this batch is already in our list
+                if all_episodes:
+                     current_ids = {e['id'] for e in episodes}
+                     existing_ids = {e['id'] for e in all_episodes}
+                     if current_ids.intersection(existing_ids):
+                         # If we found significant overlap, assume we are looping
+                         break
+
+                all_episodes.extend(episodes)
+
+                page += 1
 
             # Deduplicate episodes based on ID or Title
             unique_episodes = {}
-            for ep in episodes:
+            for ep in all_episodes:
                 # Use title as key if id is not unique enough, or just id
                 key = ep['title']
                 if key not in unique_episodes:
@@ -110,6 +134,27 @@ class GoodShortDownloader:
 
         except Exception as e:
             raise Exception(f"Failed to fetch GoodShort info: {str(e)}")
+
+    def _split_pagination_url(self, url):
+        parsed = urlparse(url)
+        qs = parse_qs(parsed.query)
+        page = 1
+        if 'page' in qs and qs['page']:
+            try:
+                page = int(qs['page'][0])
+            except ValueError:
+                page = 1
+        qs.pop('page', None)
+        clean_query = urlencode(qs, doseq=True)
+        base = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, clean_query, parsed.fragment))
+        return base, page
+
+    def _build_page_url(self, base_url, page):
+        parsed = urlparse(base_url)
+        qs = parse_qs(parsed.query)
+        qs['page'] = [str(page)]
+        new_query = urlencode(qs, doseq=True)
+        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
     def _extract_balanced_json(self, text, start_index):
         """Helper to extract JSON object by counting braces"""
@@ -339,6 +384,9 @@ class GoodShortDownloader:
         ffmpeg_headers = {}
         if referer:
             ffmpeg_headers['Referer'] = referer
+            ffmpeg_headers['Origin'] = self._origin_from_referer(referer) if hasattr(self, "_origin_from_referer") else None
+        ffmpeg_headers['User-Agent'] = self.headers['User-Agent']
+        ffmpeg_headers = {k: v for k, v in ffmpeg_headers.items() if v}
         
         # Add Cookie to ffmpeg headers if present in self.headers
         if 'Cookie' in self.headers:
@@ -347,13 +395,17 @@ class GoodShortDownloader:
         headers_str = "".join([f"{k}: {v}\r\n" for k, v in ffmpeg_headers.items()])
         
         cmd = [
-            ffmpeg_exe, "-y", 
+            ffmpeg_exe, "-y",
             "-user_agent", self.headers['User-Agent'],
-            "-headers", headers_str,
-            "-i", url, 
-            "-c", "copy", "-bsf:a", "aac_adtstoasc", 
-            output_path
         ]
+        if referer:
+            cmd.extend(["-referer", referer])
+        cmd.extend([
+            "-headers", headers_str,
+            "-i", url,
+            "-c", "copy", "-bsf:a", "aac_adtstoasc",
+            output_path
+        ])
         
         # Use a queue to pass lines from the reader thread to the main thread
         log_queue = queue.Queue()

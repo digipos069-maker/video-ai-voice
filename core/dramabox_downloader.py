@@ -3,18 +3,44 @@ from bs4 import BeautifulSoup
 import re
 import os
 import time
+from urllib.parse import urlparse
 
 class DramaboxDownloader:
     def __init__(self):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://www.dramaboxdb.com/'
+            'Referer': 'https://www.dramabox.com/'
         }
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
         
     def set_cookie(self, cookie_str):
         """Sets the Cookie header for requests."""
         if cookie_str:
             self.headers['Cookie'] = cookie_str
+            self.session.headers.update({'Cookie': cookie_str})
+
+    def _build_cookie_header(self):
+        cookies = {}
+        if self.session and self.session.cookies:
+            cookies.update(self.session.cookies.get_dict())
+        header_cookie = self.headers.get('Cookie')
+        if header_cookie:
+            for pair in header_cookie.split(';'):
+                if '=' in pair:
+                    k, v = pair.split('=', 1)
+                    cookies[k.strip()] = v.strip()
+        if not cookies:
+            return None
+        return "; ".join([f"{k}={v}" for k, v in cookies.items()])
+
+    def _origin_from_referer(self, referer):
+        if not referer:
+            return "https://www.dramabox.com"
+        parsed = urlparse(referer)
+        if not parsed.scheme or not parsed.netloc:
+            return "https://www.dramabox.com"
+        return f"{parsed.scheme}://{parsed.netloc}"
 
     def fetch_drama_info(self, url):
         """
@@ -28,7 +54,9 @@ class DramaboxDownloader:
             }
         """
         try:
-            response = requests.get(url, headers=self.headers)
+            headers = self.headers.copy()
+            headers['Referer'] = url
+            response = self.session.get(url, headers=headers)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -60,8 +88,8 @@ class DramaboxDownloader:
 
             for link in links:
                 href = link['href']
-                if '/ep/' in href:
-                    full_url = href if href.startswith('http') else 'https://www.dramaboxdb.com' + href
+                if '/ep/' in href or '/video/' in href:
+                    full_url = href if href.startswith('http') else 'https://www.dramabox.com' + href
                     
                     # Deduplicate
                     if full_url in seen_urls:
@@ -79,6 +107,14 @@ class DramaboxDownloader:
                         'url': full_url,
                         'id': full_url.split('/')[-1] # Simple ID
                     })
+
+            # If we got nothing, fall back to single-episode page.
+            if not episodes and "/video/" in url:
+                episodes.append({
+                    'title': title or "Episode",
+                    'url': url,
+                    'id': url.split('/')[-1]
+                })
 
             # Sort episodes if possible (by number)
             # This is best effort
@@ -108,7 +144,13 @@ class DramaboxDownloader:
         Attempts to find the actual video URL (mp4/m3u8) from the episode page.
         """
         try:
-            response = requests.get(episode_url, headers=self.headers)
+            if isinstance(episode_url, dict):
+                episode_url = episode_url.get('url')
+            if not episode_url:
+                return None
+            headers = self.headers.copy()
+            headers['Referer'] = episode_url
+            response = self.session.get(episode_url, headers=headers)
             response.raise_for_status()
             html = response.text
             
@@ -150,7 +192,7 @@ class DramaboxDownloader:
             if referer:
                 headers['Referer'] = referer
 
-            response = requests.get(url, stream=True, headers=headers)
+            response = self.session.get(url, stream=True, headers=headers)
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
@@ -186,21 +228,36 @@ class DramaboxDownloader:
         ffmpeg_headers = {}
         if referer:
             ffmpeg_headers['Referer'] = referer
+            ffmpeg_headers['Origin'] = self._origin_from_referer(referer)
+        ffmpeg_headers['User-Agent'] = self.headers['User-Agent']
+
+        # Warm up CDN cookies (some endpoints set short-lived tokens per request)
+        try:
+            pre_headers = ffmpeg_headers.copy()
+            pre_headers['Accept'] = "*/*"
+            self.session.get(url, headers=pre_headers, timeout=15)
+        except Exception:
+            pass
         
         # Add Cookie to ffmpeg headers if present in self.headers
-        if 'Cookie' in self.headers:
-            ffmpeg_headers['Cookie'] = self.headers['Cookie']
+        cookie_header = self._build_cookie_header()
+        if cookie_header:
+            ffmpeg_headers['Cookie'] = cookie_header
             
         headers_str = "".join([f"{k}: {v}\r\n" for k, v in ffmpeg_headers.items()])
         
         cmd = [
-            ffmpeg_exe, "-y", 
+            ffmpeg_exe, "-y",
             "-user_agent", self.headers['User-Agent'],
-            "-headers", headers_str,
-            "-i", url, 
-            "-c", "copy", "-bsf:a", "aac_adtstoasc", 
-            output_path
         ]
+        if referer:
+            cmd.extend(["-referer", referer])
+        cmd.extend([
+            "-headers", headers_str,
+            "-i", url,
+            "-c", "copy", "-bsf:a", "aac_adtstoasc",
+            output_path
+        ])
         
         # Use a queue to pass lines from the reader thread to the main thread
         log_queue = queue.Queue()
@@ -294,4 +351,3 @@ class DramaboxDownloader:
         else:
             if progress_callback:
                 progress_callback(100, 100) # Finish
-
