@@ -7,11 +7,14 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject
 
 from core.dramabox_downloader import DramaboxDownloader
 from core.goodshort_downloader import GoodShortDownloader
+from core.netshort_downloader import NetShortDownloader
 from core.settings_manager import SettingsManager
 
 def get_downloader(url):
     if "goodshort.com" in url:
         return GoodShortDownloader()
+    elif "netshort.com" in url:
+        return NetShortDownloader()
     else:
         # Default to Dramabox for now or based on url
         return DramaboxDownloader()
