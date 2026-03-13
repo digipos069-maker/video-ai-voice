@@ -82,6 +82,7 @@ class AudioGenerationWorker(QThread):
                 
                 audio_segments.append({
                     'start': sub['start'],
+                    'end': sub.get('end'),
                     'path': output_path
                 })
             except Exception as e:

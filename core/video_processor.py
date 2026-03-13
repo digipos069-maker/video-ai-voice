@@ -8,7 +8,7 @@ class VideoProcessor:
     def process_video(self, video_path, audio_segments, output_path, original_volume=1.0, ai_volume=1.0, progress_callback=None):
         """
         video_path: Path to source video.
-        audio_segments: List of dicts {'start': float, 'path': str}
+        audio_segments: List of dicts {'start': float, 'end': float|None, 'path': str}
         output_path: Path to save result.
         original_volume: Volume of original audio (0.0 to 1.0+). 0 means mute.
         ai_volume: Volume of AI audio (0.0 to 1.0+).
@@ -26,13 +26,24 @@ class VideoProcessor:
             
             # Handle AI Audio Segments
             if ai_volume > 0:
+                ai_clips = []
                 for seg in audio_segments:
                     if os.path.exists(seg['path']):
                         # Create AudioFileClip
-                        clip = AudioFileClip(seg['path']).with_start(seg['start'])
+                        clip = AudioFileClip(seg['path'])
+
+                        # Fit AI audio into subtitle window when end is provided
+                        end = seg.get('end')
+                        if end is not None:
+                            target_duration = max(0.05, float(end) - float(seg['start']))
+                            if clip.duration and clip.duration > target_duration:
+                                clip = clip.subclip(0, target_duration)
+
+                        clip = clip.with_start(seg['start'])
                         # Apply volume to AI clip
                         clip = clip.with_volume_scaled(ai_volume)
                         final_audio_clips.append(clip)
+                        ai_clips.append(clip)
             
             if final_audio_clips:
                 final_audio = CompositeAudioClip(final_audio_clips)
@@ -48,6 +59,12 @@ class VideoProcessor:
             video.close()
             if 'final_audio' in locals():
                 final_audio.close()
+            if 'ai_clips' in locals():
+                for c in ai_clips:
+                    try:
+                        c.close()
+                    except Exception:
+                        pass
             return True, "Success"
             
         except Exception as e:

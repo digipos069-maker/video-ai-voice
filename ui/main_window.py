@@ -505,6 +505,10 @@ class MainWindow(QMainWindow):
         # Update Timeline Visualization
         self.row_ai.lane.set_segments(segments)
         
+        # Auto-mute original audio so AI voice is clearly audible by default
+        self.row_audio.chk_mute.setChecked(True)
+        self.video_player.set_orig_volume(0)
+
         self.btn_generate.setEnabled(True)
         self.btn_export.setEnabled(True)
         # self.widget_ai_track.setVisible(True) # No longer needed as row is always visible but empty

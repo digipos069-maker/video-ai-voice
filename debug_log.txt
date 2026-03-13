@@ -408,3 +408,79 @@ Traceback (most recent call last):
 KeyboardInterrupt
 
 --------------------
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting audio extraction for: E:/mmo/building-page/drama/video/(Dubbed) Born to Dominate/ep00001_QHK7v22iCjwDgKeyPairIdK15WUQYEZKHKVU38ayug.mp4
+Audio extracted successfully.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 21
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 45
+Worker thread finished successfully.
+Starting translation to km...
+Translation complete.
+Worker thread started.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 46
+Worker thread finished successfully.

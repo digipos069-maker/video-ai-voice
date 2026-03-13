@@ -2,6 +2,7 @@ import cv2
 import os
 import subprocess
 import imageio_ffmpeg
+from moviepy import AudioFileClip
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QWidget, QVBoxLayout, QMessageBox
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QUrl, QSize
 from PyQt5.QtGui import QImage, QPixmap, QIcon
@@ -35,8 +36,10 @@ class VideoPlayer(QWidget):
         
         # Audio Player 2: AI Voiceover
         self.ai_player = QMediaPlayer(None, QMediaPlayer.LowLatency)
+        self.ai_player.setVolume(100)
         self.ai_segments = [] # List of {'start': float, 'path': str}
         self.next_ai_index = 0
+        self.current_ai_end = None
         
         # Subtitle Data
         self.subtitles = [] # List of {'start': float, 'end': float, 'text': str}
@@ -191,8 +194,58 @@ class VideoPlayer(QWidget):
         segments: List of dicts {'start': float, 'path': str} (start is in seconds)
         """
         # Sort by start time just in case
-        self.ai_segments = sorted(segments, key=lambda x: x['start'])
+        sorted_segments = sorted(segments, key=lambda x: x['start'])
+        self.ai_segments = []
+        for i, seg in enumerate(sorted_segments):
+            seg_copy = dict(seg)
+            start = seg_copy.get('start')
+            end = seg_copy.get('end')
+            if start is not None and end is not None and end <= start:
+                end = start + 0.05
+            seg_copy['_effective_end'] = end
+            seg_copy['preview_path'] = self._convert_ai_audio_for_preview(
+                seg['path'],
+                i,
+                start,
+                end
+            )
+            self.ai_segments.append(seg_copy)
         self.next_ai_index = 0
+        self.current_ai_end = None
+
+    def _convert_ai_audio_for_preview(self, path, index, start, end):
+        """Convert AI audio to WAV to avoid DirectShow decode errors."""
+        if not path or not os.path.exists(path):
+            return path
+        temp_dir = os.path.join(os.getcwd(), "temp_preview_ai")
+        os.makedirs(temp_dir, exist_ok=True)
+        preview_path = os.path.join(temp_dir, f"ai_{index}.wav")
+        if os.path.exists(preview_path):
+            return preview_path
+        try:
+            target_duration = None
+            if start is not None and end is not None:
+                target_duration = max(0.05, float(end) - float(start))
+
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            afilter = None
+            if target_duration is not None:
+                afilter = f"atrim=0:{target_duration:.3f}"
+            cmd = [
+                ffmpeg_exe,
+                "-y",
+                "-i", path,
+                "-vn",
+                "-acodec", "pcm_s16le",
+                "-ar", "44100",
+                "-ac", "1",
+                "-filter:a", afilter if afilter else "anull",
+                preview_path
+            ]
+            subprocess.run(cmd, creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0, check=True)
+            return preview_path
+        except Exception:
+            return path
 
     def play(self):
         if self.cap and self.cap.isOpened():
@@ -226,6 +279,7 @@ class VideoPlayer(QWidget):
             self.next_frame()
         self.current_msec = 0
         self.next_ai_index = 0
+        self.current_ai_end = None
 
     def release_audio(self):
         """Releases file locks on audio files."""
@@ -233,6 +287,17 @@ class VideoPlayer(QWidget):
         self.orig_player.setMedia(QMediaContent())
         self.ai_player.setMedia(QMediaContent())
         self.ai_segments = []
+        preview_dir = os.path.join(os.getcwd(), "temp_preview_ai")
+        if os.path.isdir(preview_dir):
+            for f in os.listdir(preview_dir):
+                try:
+                    os.remove(os.path.join(preview_dir, f))
+                except Exception:
+                    pass
+            try:
+                os.rmdir(preview_dir)
+            except Exception:
+                pass
 
     def set_position(self, msecs):
         if self.cap and self.cap.isOpened():
@@ -258,6 +323,7 @@ class VideoPlayer(QWidget):
             
             # Stop AI player if seeking (simple approach)
             self.ai_player.stop()
+            self.current_ai_end = None
 
     def set_orig_volume(self, volume):
         self.orig_player.setVolume(volume)
@@ -317,9 +383,17 @@ class VideoPlayer(QWidget):
                     if current_sec >= seg['start']:
                         # Play this segment
                         # print(f"Playing AI Segment: {seg['path']} at {current_sec}")
-                        self.ai_player.setMedia(QMediaContent(QUrl.fromLocalFile(seg['path'])))
+                        play_path = seg.get('preview_path') or seg['path']
+                        self.ai_player.setMedia(QMediaContent(QUrl.fromLocalFile(play_path)))
                         self.ai_player.play()
+                        self.current_ai_end = seg.get('_effective_end')
                         self.next_ai_index += 1
+
+                if self.is_playing and self.current_ai_end is not None:
+                    current_sec = self.current_msec / 1000.0
+                    if current_sec >= self.current_ai_end + 0.02:
+                        self.ai_player.stop()
+                        self.current_ai_end = None
                 
                 if self.is_playing:
                     self.positionChanged.emit(self.current_msec)

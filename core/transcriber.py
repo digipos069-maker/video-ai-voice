@@ -64,48 +64,11 @@ class Transcriber:
         return self._model
 
     def transcribe_video(self, video_path, output_srt=None):
-        temp_audio = "temp_transcription_audio.mp3"
-        
-        # Ensure clean state
-        if os.path.exists(temp_audio):
-            try:
-                os.remove(temp_audio)
-            except:
-                pass
-
         try:
-            log_debug(f"Starting audio extraction for: {video_path}")
-            
-            # Get the ffmpeg binary path provided by imageio_ffmpeg
-            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-            
-            # Use direct subprocess call
-            cmd = [
-                ffmpeg_exe,
-                "-i", video_path,
-                "-vn", # No video
-                "-acodec", "libmp3lame",
-                "-q:a", "4",
-                "-y", # Overwrite
-                temp_audio
-            ]
-            
-            # Run silently
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                log_debug(f"FFmpeg failed: {result.stderr}")
-                raise RuntimeError(f"FFmpeg failed: {result.stderr}")
-                
-            log_debug("Audio extracted successfully.")
-
-            if not os.path.exists(temp_audio):
-                raise RuntimeError("Audio extraction appeared to succeed but file is missing.")
-
             log_debug("Starting transcription...")
             # Run transcription
             # OpenAI Whisper's transcribe method
-            result = self.model.transcribe(temp_audio, fp16=False) # fp16=False is crucial for CPU
+            result = self.model.transcribe(video_path, fp16=False) # fp16=False is crucial for CPU
             
             segments = []
             for i, seg in enumerate(result['segments']):
@@ -130,13 +93,6 @@ class Transcriber:
             log_debug(f"CRITICAL ERROR in transcribe_video: {e}")
             log_debug(traceback.format_exc())
             raise e
-            
-        finally:
-            if os.path.exists(temp_audio):
-                try:
-                    os.remove(temp_audio)
-                except:
-                    pass
 
 def segments_to_srt(segments):
     srt_lines = []
