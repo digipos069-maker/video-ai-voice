@@ -484,3 +484,45 @@ Initializing OpenAI Whisper Model...
 Whisper Model loaded (CPU).
 Transcription complete. Segments: 46
 Worker thread finished successfully.
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 381, in load_video
+    self.check_enable_generate()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 414, in check_enable_generate
+    self.btn_auto_srt.setEnabled(True)
+    ^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'btn_auto_srt'. Did you mean: 'btn_load_srt'?
+
+--------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 381, in load_video
+    self.check_enable_generate()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 414, in check_enable_generate
+    self.btn_auto_srt.setEnabled(True)
+    ^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'btn_auto_srt'. Did you mean: 'btn_load_srt'?
+
+--------------------
+
+--- CRASH REPORT ---
+Traceback (most recent call last):
+  File "E:\project\videoAIVoice\ui\main_window.py", line 381, in load_video
+    self.check_enable_generate()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\project\videoAIVoice\ui\main_window.py", line 414, in check_enable_generate
+    self.btn_auto_srt.setEnabled(True)
+    ^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'btn_auto_srt'. Did you mean: 'btn_load_srt'?
+
+--------------------
+Worker thread started.
+Starting transcription...
+Initializing OpenAI Whisper Model...
+Whisper Model loaded (CPU).
+Transcription complete. Segments: 25
+Worker thread finished successfully.

@@ -6,3 +6,4 @@ __pycache__/
 *cpython-3*.pyc
 
 temp_audio/
+temp_preview_*

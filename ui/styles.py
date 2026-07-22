@@ -1,11 +1,17 @@
 PRIMARY_COLOR = "#032EA1"
+TITLE_BAR_COLOR = "#1E1E24"  # Modern Deep Charcoal
 TEXT_COLOR = "#333333"
-BACKGROUND_COLOR = "#F5F5F5"
+BACKGROUND_COLOR = "#F8F9FA" # Brighter, cleaner light background
 WHITE = "#FFFFFF"
 
 STYLESHEET = f"""
 QMainWindow {{
     background-color: {BACKGROUND_COLOR};
+}}
+
+#CustomTitleBar {{
+    background-color: {TITLE_BAR_COLOR};
+    border-bottom: 1px solid #121212;
 }}
 
 QWidget {{

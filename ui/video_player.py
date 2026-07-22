@@ -48,9 +48,9 @@ class VideoPlayer(QWidget):
         # Display label
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("background-color: #333333; color: #AAAAAA; font-size: 16px;")
-        self.label.setMinimumSize(640, 360)
-        self.label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.label.setStyleSheet("background-color: #000000; border: 2px solid #333333; border-radius: 10px;")
+        self.label.setMinimumSize(360, 640)
+        self.label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         
         # Subtitle Overlay (Child of the video label)
         self.sub_overlay = SubtitleOverlay(self.label)

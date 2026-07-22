@@ -4,11 +4,12 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QFileDialog, QTableWidget, 
                              QTableWidgetItem, QTabWidget, QHeaderView, QSlider, 
                              QComboBox, QMessageBox, QProgressBar, QGroupBox, QLineEdit,
-                             QGridLayout, QCheckBox, QStyle)
+                             QGridLayout, QCheckBox, QStyle, QSizeGrip)
 from PyQt5.QtCore import Qt, QUrl, QTime
 from PyQt5.QtGui import QIcon, QFont
 
 from ui.styles import STYLESHEET, PRIMARY_COLOR
+from ui.title_bar import CustomTitleBar
 from ui.workers import AudioGenerationWorker, VideoExportWorker, TranscriptionWorker, TranslationWorker
 from ui.video_player import VideoPlayer
 from ui.timeline import TimelineLane
@@ -20,6 +21,7 @@ from core.settings_manager import SettingsManager
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setWindowTitle("Video AI Voiceover Tool")
         self.resize(1200, 800)
         self.setStyleSheet(STYLESHEET)
@@ -41,11 +43,31 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+
+        # Custom Title Bar
+        self.title_bar = CustomTitleBar(self)
+        self.main_layout.addWidget(self.title_bar)
+
+        # Content Widget
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.addWidget(self.content_widget)
 
         # Tabs
         self.tabs = QTabWidget()
-        self.main_layout.addWidget(self.tabs)
+        self.content_layout.addWidget(self.tabs)
 
+        # Size Grip for resizing
+        self.size_grip = QSizeGrip(self)
+        self.size_grip.setFixedSize(16, 16)
+        
+        # We need to position the size grip at the bottom right. 
+        # A simple way is to add it to a layout that is always at the bottom.
+        # Or just let it float and we'll handle its position in resizeEvent.
+        
         # Tab 1: Editor
         self.editor_tab = QWidget()
         self.setup_editor_tab()
@@ -72,6 +94,10 @@ class MainWindow(QMainWindow):
         # Also set for ComboBoxes and CheckBoxes
         for widget in self.findChildren((QComboBox, QCheckBox)):
             widget.setCursor(Qt.PointingHandCursor)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.size_grip.move(self.width() - self.size_grip.width(), self.height() - self.size_grip.height())
 
     def create_timeline_row(self, label_text, track_type, color):
         """Creates a row with Controls (Left) and Timeline Lane (Right)."""
@@ -121,70 +147,80 @@ class MainWindow(QMainWindow):
 
     def setup_editor_tab(self):
         layout = QHBoxLayout(self.editor_tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(20)
 
-        # --- LEFT PANEL ---
-        left_panel = QVBoxLayout()
+        # --- LEFT COLUMN: Mobile Video Player ---
+        player_column = QVBoxLayout()
         
         # 1. Video Player
         self.video_player = VideoPlayer()
         self.video_player.stateChanged.connect(self.media_state_changed)
         self.video_player.positionChanged.connect(self.position_changed)
         self.video_player.durationChanged.connect(self.duration_changed)
-        self.video_player.importRequested.connect(self.load_video) # Connect click-to-import
-        # self.video_player.thumbnailReady.connect(...) # Thumbnail not used in this specific layout version
-        left_panel.addWidget(self.video_player)
+        self.video_player.importRequested.connect(self.load_video)
+        player_column.addWidget(self.video_player)
 
-        # 2. Player Controls (Centered Play Button)
-        controls_layout = QHBoxLayout()
-        controls_layout.addStretch()
-        
+        # 2. Play Button (Centered under player)
         self.btn_play = QPushButton("Play")
-        self.btn_play.setFixedWidth(100) # Make it bigger/distinct
+        self.btn_play.setFixedHeight(40)
         self.btn_play.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.btn_play.clicked.connect(self.play_video)
+        player_column.addWidget(self.btn_play)
         
-        controls_layout.addWidget(self.btn_play)
-        controls_layout.addStretch()
-        
-        left_panel.addLayout(controls_layout)
+        player_column.addStretch()
+        layout.addLayout(player_column)
 
-        # --- TIMELINE (Visual Tracks) ---
-        timeline_group = QGroupBox("Timeline")
+        # --- RIGHT COLUMN: Tools & Timeline ---
+        right_column = QVBoxLayout()
+        
+        # 1. Subtitle Table (Top)
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Start", "End", "Original", "Translated"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.table.setFont(QFont("DaunPenh", 14))
+        right_column.addWidget(self.table, stretch=2)
+
+        # 2. Timeline (Middle)
+        timeline_group = QGroupBox("Timeline Visualizer")
         timeline_layout = QVBoxLayout()
         timeline_layout.setSpacing(2)
         
-        # Video Track (Blue)
         self.row_video = self.create_timeline_row("Video Track", "video", "#3498DB")
         self.row_video.chk_hide.stateChanged.connect(lambda state: self.video_player.set_video_visible(not state))
-        self.row_video.lane.seekRequested.connect(self.set_position) # Enable seeking
+        self.row_video.lane.seekRequested.connect(self.set_position)
         timeline_layout.addWidget(self.row_video)
         
-        # Original Audio (Green)
         self.row_audio = self.create_timeline_row("Original Audio", "audio", "#2ECC71")
         self.row_audio.slider.valueChanged.connect(self.video_player.set_orig_volume)
         self.row_audio.chk_mute.stateChanged.connect(
             lambda state: self.video_player.set_orig_volume(0 if state else self.row_audio.slider.value())
         )
-        self.row_audio.lane.seekRequested.connect(self.set_position) # Enable seeking
+        self.row_audio.lane.seekRequested.connect(self.set_position)
         timeline_layout.addWidget(self.row_audio)
         
-        # AI Audio (Purple)
         self.row_ai = self.create_timeline_row("AI Voiceover", "ai", "#9B59B6")
         self.row_ai.slider.valueChanged.connect(self.video_player.set_ai_volume)
         self.row_ai.chk_mute.stateChanged.connect(
             lambda state: self.video_player.set_ai_volume(0 if state else self.row_ai.slider.value())
         )
-        self.row_ai.lane.seekRequested.connect(self.set_position) # Enable seeking
+        self.row_ai.lane.seekRequested.connect(self.set_position)
         timeline_layout.addWidget(self.row_ai)
         
         timeline_group.setLayout(timeline_layout)
-        left_panel.addWidget(timeline_group)
+        right_column.addWidget(timeline_group)
 
-        # Spacer
-        left_panel.addStretch()
-
-        # 3. Import Buttons (Moved to Bottom)
-        actions_layout = QHBoxLayout()
+        # 3. Control Panels (Bottom)
+        bottom_controls = QHBoxLayout()
+        
+        # Import Actions
+        import_group = QGroupBox("Import / Edit")
+        import_layout = QVBoxLayout()
+        
         self.btn_load_video = QPushButton("Import Video")
         self.btn_load_video.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
         self.btn_load_video.clicked.connect(self.load_video)
@@ -204,57 +240,44 @@ class MainWindow(QMainWindow):
         self.btn_auto_srt.setEnabled(False)
 
         self.btn_translate = QPushButton("Translate (Khmer)")
-        self.btn_translate.setIcon(self.style().standardIcon(QStyle.SP_DialogApplyButton)) # Apply/Check icon
+        self.btn_translate.setIcon(self.style().standardIcon(QStyle.SP_DialogApplyButton))
         self.btn_translate.clicked.connect(self.translate_subtitles)
         self.btn_translate.setEnabled(False)
         
-        actions_layout.addWidget(self.btn_load_video)
-        actions_layout.addWidget(self.btn_load_srt)
-        actions_layout.addWidget(self.btn_export_srt)
-        actions_layout.addWidget(self.btn_auto_srt)
-        actions_layout.addWidget(self.btn_translate)
-        left_panel.addLayout(actions_layout)
-        
-        layout.addLayout(left_panel, stretch=2)
+        import_layout.addWidget(self.btn_load_video)
+        import_layout.addWidget(self.btn_load_srt)
+        import_layout.addWidget(self.btn_export_srt)
+        import_layout.addWidget(self.btn_auto_srt)
+        import_layout.addWidget(self.btn_translate)
+        import_group.setLayout(import_layout)
+        bottom_controls.addWidget(import_group)
 
-        # --- RIGHT PANEL ---
-        right_panel = QVBoxLayout()
-        
-        # 1. Subtitle Table
-        self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Start", "End", "Original", "Translated"])
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents) # Start
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents) # End
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive) # Original
-        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch) # Translated (Fill rest)
-        self.table.setFont(QFont("DaunPenh", 14)) # Khmer-friendly font
-        right_panel.addWidget(self.table)
-
-        # 2. Generation Controls
-        gen_group = QGroupBox("Process")
-        gen_layout = QVBoxLayout()
+        # Process Actions
+        process_group = QGroupBox("Process & Export")
+        process_layout = QVBoxLayout()
         
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
-        gen_layout.addWidget(self.progress_bar)
+        process_layout.addWidget(self.progress_bar)
 
         self.btn_generate = QPushButton("Generate AI Voice")
         self.btn_generate.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.btn_generate.clicked.connect(self.generate_voice)
         self.btn_generate.setEnabled(False)
-        gen_layout.addWidget(self.btn_generate)
+        process_layout.addWidget(self.btn_generate)
 
         self.btn_export = QPushButton("Export Final Video")
         self.btn_export.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
         self.btn_export.clicked.connect(self.export_video)
         self.btn_export.setEnabled(False)
-        gen_layout.addWidget(self.btn_export)
+        process_layout.addWidget(self.btn_export)
 
-        gen_group.setLayout(gen_layout)
-        right_panel.addWidget(gen_group)
-
-        layout.addLayout(right_panel, stretch=1)
+        process_group.setLayout(process_layout)
+        bottom_controls.addWidget(process_group)
+        
+        right_column.addLayout(bottom_controls)
+        
+        layout.addLayout(right_column, stretch=1)
 
     def setup_settings_tab(self):
         layout = QVBoxLayout(self.settings_tab)
